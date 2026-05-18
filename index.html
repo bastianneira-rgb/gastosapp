@@ -535,6 +535,10 @@
           <button class="btn btn-sm" onclick="exportarExcel()">📊 Exportar Excel</button>
         </div>
         <div class="stats-grid" id="rep-stats" style="grid-template-columns:repeat(3,1fr)"></div>
+        <div class="table-card" style="margin-bottom:16px">
+          <div class="table-header"><span class="table-header-title">📊 Evolución mensual</span></div>
+          <div style="padding:16px;overflow-x:auto"><canvas id="rep-chart" height="120"></canvas></div>
+        </div>
         <div class="table-card"><div class="table-header"><span class="table-header-title">Detalle por usuario</span></div><div id="rep-table"></div></div>
       </div>
 
@@ -1072,7 +1076,7 @@ async function submitGasto(estado){
   const btn=document.getElementById('btn-enviar');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Guardando...';
   try{
     if(window._editandoId){
-      // Reenvío de rendición rechazada
+      // Reenvío de rendición rechazada o envío de borrador
       const id=window._editandoId;
       const rows=await getValues('Gastos!A2:P1000');
       let ri=-1;for(let i=0;i<rows.length;i++)if(rows[i][0]===id){ri=i+2;break;}
@@ -1087,6 +1091,7 @@ async function submitGasto(estado){
         showToast('Corrección enviada ✓','success');
       }
       window._editandoId=null;
+      window._editandoBorrador=false;
     } else {
       const id='G'+Date.now();let compURL='',compNombre='';
       if(selectedFile){showToast('Subiendo comprobante a Drive...','info');compURL=await uploadToDrive(selectedFile,id);compNombre=selectedFile.name;}
@@ -1115,7 +1120,22 @@ function renderMisRendiciones(){
   data=[...data].reverse();document.getElementById('mis-count').textContent=data.length+' registros';
   const b=document.getElementById('mis-table-body');
   if(!data.length){b.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Sin rendiciones con esos filtros</div></div>';return;}
-  b.innerHTML=`<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Abono</th><th>Comprobante</th><th>Estado</th><th>Pago</th><th></th></tr></thead><tbody>${data.map(r=>`<tr><td>${r.fecha}</td><td>${r.descripcion.substring(0,30)}${r.descripcion.length>30?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${r.abono==='SI'?`<span style='color:var(--green);font-size:12px'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'—'}</td><td>${r.comprobante_url?`<a href='${r.comprobante_url}' target='_blank' style='color:var(--purple);font-size:12px'>📎 Ver</a>`:'<span style="color:var(--text-3)">—</span>'}</td><td>${bh(r.estado)}</td><td>${r.estado==='aprobado'?(r.estado_pago==='pagado'?`<span class='badge badge-approved'>💳 Pagado<br><span style='font-size:10px'>${r.fecha_pago}</span></span>`:`<span class='badge badge-pending'>⏳ Pendiente</span>`):'—'}</td><td>${r.estado==='rechazado'?`<button class='btn btn-sm' onclick='editarRechazada("${r.id}")'>✏️ Corregir</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+  b.innerHTML=`<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Abono</th><th>Comprobante</th><th>Estado</th><th>Pago</th><th></th></tr></thead><tbody>${data.map(r=>`<tr><td>${r.fecha}</td><td>${r.descripcion.substring(0,30)}${r.descripcion.length>30?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${r.abono==='SI'?`<span style='color:var(--green);font-size:12px'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'—'}</td><td>${r.comprobante_url?`<a href='${r.comprobante_url}' target='_blank' style='color:var(--purple);font-size:12px'>📎 Ver</a>`:'<span style="color:var(--text-3)">—</span>'}</td><td>${bh(r.estado)}</td><td>${r.estado==='aprobado'?(r.estado_pago==='pagado'?`<span class='badge badge-approved'>💳 Pagado<br><span style='font-size:10px'>${r.fecha_pago}</span></span>`:`<span class='badge badge-pending'>⏳ Pendiente</span>`):'—'}</td><td>${r.estado==='rechazado'?`<button class='btn btn-sm' onclick='editarRechazada("${r.id}")'>✏️ Corregir</button>`:r.estado==='borrador'?`<button class='btn btn-sm btn-primary' onclick='editarBorrador("${r.id}")'>✏️ Editar</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ── Editar borrador ──────────────────────────────────────────
+function editarBorrador(id){
+  const r=allData.find(x=>x.id===id);if(!r)return;
+  document.getElementById('f-fecha').value=r.fecha;
+  document.getElementById('f-categoria').value=r.categoria;
+  document.getElementById('f-monto').value=r.monto;
+  document.getElementById('f-proyecto').value=r.proyecto;
+  document.getElementById('f-descripcion').value=r.descripcion;
+  window._editandoId=id;
+  window._editandoBorrador=true;
+  showView('nueva',document.querySelectorAll('.nav-item')[2]);
+  document.getElementById('btn-enviar').innerHTML='📤 Enviar borrador';
+  showToast('Edita y envía para aprobación, o guarda de nuevo como borrador','info');
 }
 
 // ── Editar rendición rechazada ────────────────────────────
@@ -1386,14 +1406,14 @@ async function updateUserRole(email,role){
 
 // ── Reportes ──────────────────────────────────────────────
 function populateMesFilter(){
-  const meses=[...new Set(allData.map(r=>r.fecha_creacion.substring(0,7)))].sort().reverse();
+  const meses=[...new Set(allData.map(r=>(r.fecha||'').substring(0,7)).filter(Boolean))].sort().reverse();
   const sel=document.getElementById('rep-mes'),cur=sel.value;
   sel.innerHTML='<option value="">Todos los meses</option>'+meses.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');
 }
 
 function renderReportes(){
   const mes=document.getElementById('rep-mes').value;
-  let data=mes?allData.filter(r=>r.fecha_creacion.startsWith(mes)):allData;
+  let data=mes?allData.filter(r=>(r.fecha||'').startsWith(mes)):allData;
   const total=data.reduce((s,r)=>s+r.monto,0),aprobado=data.filter(r=>r.estado==='aprobado').reduce((s,r)=>s+r.monto,0),pendiente=data.filter(r=>r.estado==='pendiente').reduce((s,r)=>s+r.monto,0);
   const pagadasRep=data.filter(r=>r.estado==='aprobado'&&r.estado_pago==='pagado');
   const sinPagarRep=data.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado');
@@ -1404,7 +1424,8 @@ function renderReportes(){
     <div class="stat-card"><div class="stat-label">⏳ Sin pagar</div><div class="stat-value" style="color:var(--amber)">$${sinPagarRep.reduce((s,r)=>s+r.monto,0).toLocaleString('es-CL')}</div><div class="stat-sub">${sinPagarRep.length} pendientes</div></div>
     <div class="stat-card"><div class="stat-label">🔴 Rechazadas</div><div class="stat-value" style="color:var(--red)">${data.filter(r=>r.estado==='rechazado').length}</div><div class="stat-sub">rechazadas</div></div>
     <div class="stat-card"><div class="stat-label">📁 Comprobantes</div><div class="stat-value">${data.filter(r=>r.comprobante_url).length}</div><div class="stat-sub">en Drive</div></div>`;
-  const bu={};data.forEach(r=>{if(!bu[r.email])bu[r.email]={name:r.usuario,total:0,aprobado:0,pendiente:0,count:0};bu[r.email].total+=r.monto;bu[r.email].count++;if(r.estado==='aprobado')bu[r.email].aprobado+=r.monto;if(r.estado==='pendiente')bu[r.email].pendiente+=r.monto;});
+  const bu={};data.forEach(r=>{if(!bu[r.email])bu[r.email]={name:r.usuario,email:r.email,total:0,aprobado:0,pagado:0,pendiente:0,count:0};bu[r.email].total+=r.monto;bu[r.email].count++;if(r.estado==='aprobado')bu[r.email].aprobado+=r.monto;if(r.estado==='aprobado'&&r.estado_pago==='pagado')bu[r.email].pagado+=r.monto;if(r.estado==='pendiente')bu[r.email].pendiente+=r.monto;});
+  renderChart(data);
   const rows=Object.values(bu).sort((a,b)=>b.total-a.total);
   if(!rows.length){document.getElementById('rep-table').innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">Sin datos</div></div>';return;}
   document.getElementById('rep-table').innerHTML=`
@@ -1422,10 +1443,71 @@ function renderReportes(){
     <div id="detalle-usuario" style="margin-top:16px"></div>`;
 }
 
+function renderChart(data){
+  const canvas=document.getElementById('rep-chart');
+  if(!canvas)return;
+  // Agrupar por mes (fecha del gasto)
+  const byMes={};
+  data.forEach(r=>{
+    const m=(r.fecha||'').substring(0,7);if(!m)return;
+    if(!byMes[m])byMes[m]={total:0,count:0,aprobado:0};
+    byMes[m].total+=r.monto;byMes[m].count++;
+    if(r.estado==='aprobado')byMes[m].aprobado+=r.monto;
+  });
+  const meses=Object.keys(byMes).sort();
+  if(!meses.length){canvas.style.display='none';return;}
+  canvas.style.display='block';
+  const ctx=canvas.getContext('2d');
+  const W=canvas.parentElement.clientWidth-32||600;
+  canvas.width=W;canvas.height=200;
+  ctx.clearRect(0,0,W,200);
+  const pad={t:20,r:20,b:50,l:70};
+  const cW=W-pad.l-pad.r,cH=200-pad.t-pad.b;
+  const maxMonto=Math.max(...meses.map(m=>byMes[m].total),1);
+  const maxCount=Math.max(...meses.map(m=>byMes[m].count),1);
+  const barW=Math.min(40,cW/meses.length-8);
+  // Fondo
+  ctx.fillStyle='#f8f7ff';ctx.fillRect(0,0,W,200);
+  // Líneas guía
+  ctx.strokeStyle='#e5e3f5';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+cH*(1-i/4);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();
+    ctx.fillStyle='#a8a6c0';ctx.font='11px DM Sans,sans-serif';ctx.textAlign='right';
+    ctx.fillText('$'+(maxMonto*i/4/1000).toFixed(0)+'k',pad.l-6,y+4);
+  }
+  // Barras
+  meses.forEach((m,i)=>{
+    const x=pad.l+i*(cW/meses.length)+(cW/meses.length-barW)/2;
+    const hT=cH*(byMes[m].total/maxMonto);
+    const hA=cH*(byMes[m].aprobado/maxMonto);
+    // Barra total (gris)
+    ctx.fillStyle='#e5e3f5';
+    ctx.fillRect(x,pad.t+cH-hT,barW,hT);
+    // Barra aprobado (verde)
+    ctx.fillStyle='#1D9E75';
+    ctx.fillRect(x,pad.t+cH-hA,barW,hA);
+    // Etiqueta mes
+    ctx.fillStyle='#6b6888';ctx.font='11px DM Sans,sans-serif';ctx.textAlign='center';
+    const label=m.length>=7?m.substring(5)+'/'+(m.substring(2,4)):m;
+    ctx.fillText(label,x+barW/2,pad.t+cH+16);
+    // Cantidad
+    ctx.fillStyle='#CC0000';ctx.font='bold 11px DM Sans,sans-serif';
+    ctx.fillText(byMes[m].count,x+barW/2,pad.t+cH-hT-4);
+  });
+  // Leyenda
+  ctx.fillStyle='#e5e3f5';ctx.fillRect(pad.l,10,14,10);
+  ctx.fillStyle='#6b6888';ctx.font='11px DM Sans,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Total',pad.l+18,19);
+  ctx.fillStyle='#1D9E75';ctx.fillRect(pad.l+70,10,14,10);
+  ctx.fillStyle='#6b6888';ctx.fillText('Aprobado',pad.l+88,19);
+  ctx.fillStyle='#CC0000';ctx.fillText('(número = cant. rendiciones)',pad.l+180,19);
+}
+
 function verDetalleUsuario(email){
   const mes=document.getElementById('rep-mes').value;
   let data=allData.filter(r=>r.email===email);
-  if(mes) data=data.filter(r=>r.fecha_creacion.startsWith(mes));
+  if(mes) data=data.filter(r=>(r.fecha||'').startsWith(mes));
   data=[...data].reverse();
   const user=data[0]?.usuario||email;
   const el=document.getElementById('detalle-usuario');
@@ -1456,7 +1538,7 @@ function verDetalleUsuario(email){
 
 function exportarExcel(){
   const mes=document.getElementById('rep-mes').value;
-  let data=mes?allData.filter(r=>r.fecha_creacion.startsWith(mes)):allData;
+  let data=mes?allData.filter(r=>(r.fecha||'').startsWith(mes)):allData;
   if(!data.length){showToast('Sin datos para exportar','error');return;}
   const ws=XLSX.utils.json_to_sheet(data.map(r=>({ID:r.id,Fecha:r.fecha,Usuario:r.usuario,Email:r.email,'Categoría':r.categoria,Monto:r.monto,Proyecto:r.proyecto,'Descripción':r.descripcion,Estado:r.estado,Comprobante:r.comprobante_url,Creado:r.fecha_creacion,'Aprobado por':r.aprobado_por,Comentario:r.comentario})));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Gastos');
