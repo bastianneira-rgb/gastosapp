@@ -22,13 +22,20 @@ function calculateUserBalance(userId){
 
   const userExpenses = expenses.filter(e => e.userId === userId);
 
+  // Total de abonos recibidos
   const totalAdvances = userExpenses
-    .reduce((sum,e)=> sum + Number(e.advanceAmount || e.abono || 0),0);
+    .reduce((sum,e)=>{
+      return sum + Number(e.advanceAmount || e.abono || 0);
+    },0);
 
-  const totalRendered = userExpenses
-    .reduce((sum,e)=> sum + Number(e.amount || e.receivedAmount || e.rendicion || 0),0);
+  // SOLO descontar rendiciones aprobadas
+  const approvedRendered = userExpenses
+    .filter(e => e.status === 'approved')
+    .reduce((sum,e)=>{
+      return sum + Number(e.amount || e.receivedAmount || e.rendicion || 0);
+    },0);
 
-  return totalAdvances - totalRendered;
+  return totalAdvances - approvedRendered;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1832,13 +1839,20 @@ function calculateUserBalance(userId){
 
   const userExpenses = expenses.filter(e => e.userId === userId);
 
+  // Total de abonos recibidos
   const totalAdvances = userExpenses
-    .reduce((sum,e)=> sum + Number(e.advanceAmount || e.abono || 0),0);
+    .reduce((sum,e)=>{
+      return sum + Number(e.advanceAmount || e.abono || 0);
+    },0);
 
-  const totalRendered = userExpenses
-    .reduce((sum,e)=> sum + Number(e.amount || e.receivedAmount || e.rendicion || 0),0);
+  // SOLO descontar rendiciones aprobadas
+  const approvedRendered = userExpenses
+    .filter(e => e.status === 'approved')
+    .reduce((sum,e)=>{
+      return sum + Number(e.amount || e.receivedAmount || e.rendicion || 0);
+    },0);
 
-  return totalAdvances - totalRendered;
+  return totalAdvances - approvedRendered;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
