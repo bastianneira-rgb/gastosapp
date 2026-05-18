@@ -216,9 +216,10 @@
     .form-actions{flex-direction:column;}
     .form-actions .btn{width:100%;justify-content:center;}
 
-    /* Ocultar btn sincronizar en mobile, mostrar salir */
+    /* Ocultar btn sincronizar en mobile, mostrar salir y perfil */
     .topbar .btn{display:none;}
     #btn-logout-mobile{display:flex !important;}
+    #btn-perfil-mobile{display:flex !important;}
   }
 
   @media(max-width:400px){
@@ -408,6 +409,7 @@
     <div class="topbar">
       <span class="topbar-title" id="view-title">Dashboard</span>
       <button class="btn btn-sm" onclick="syncAll()">🔄 Sincronizar</button>
+      <button class="btn btn-sm" id="btn-perfil-mobile" onclick="abrirModalPerfil()" style="display:none" title="Mi perfil">👤</button>
       <button class="btn btn-sm" id="btn-logout-mobile" onclick="doLogout()" style="display:none">🚪 Salir</button>
     </div>
     <div class="content">
