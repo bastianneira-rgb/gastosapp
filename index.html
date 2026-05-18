@@ -144,6 +144,16 @@
   .init-bar-fill{height:100%;background:var(--purple);border-radius:3px;animation:loading 2s ease-in-out infinite;}
   @keyframes loading{0%{width:0%}50%{width:70%}100%{width:100%}}
 
+
+  /* ── PIN ── */
+  .pin-dots{display:flex;gap:16px;justify-content:center;margin:24px 0 20px;}
+  .pin-dots span{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);background:var(--bg);transition:all .15s;}
+  .pin-dots span.filled{background:var(--purple);border-color:var(--purple);}
+  .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:240px;margin:0 auto;}
+  .pin-pad button{padding:16px;border-radius:12px;border:1px solid var(--border);background:var(--surface);font-size:20px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text);transition:all .15s;}
+  .pin-pad button:hover{background:var(--purple-light);border-color:var(--purple);}
+  .pin-pad button:active{transform:scale(.95);background:var(--purple);color:white;}
+
   /* ── RESPONSIVE MÓVIL ── */
   @media(max-width:768px){
     :root{--sidebar-w:0px;}
@@ -192,8 +202,9 @@
     .form-actions{flex-direction:column;}
     .form-actions .btn{width:100%;justify-content:center;}
 
-    /* Ocultar btn sincronizar en mobile */
+    /* Ocultar btn sincronizar en mobile, mostrar salir */
     .topbar .btn{display:none;}
+    #btn-logout-mobile{display:flex !important;}
   }
 
   @media(max-width:400px){
@@ -262,6 +273,47 @@
   </div>
 </div>
 
+
+<!-- CREAR PIN -->
+<div class="auth-screen" id="create-pin-screen" style="display:none">
+  <div class="auth-card">
+    <div style="font-size:40px;margin-bottom:8px">🔐</div>
+    <div class="auth-title">Crear PIN</div>
+    <div class="auth-sub">Crea tu PIN de 4 dígitos.<br>Lo usarás cada vez que inicies sesión.</div>
+    <div class="auth-error" id="create-pin-error"></div>
+    <div class="pin-dots" id="create-pin-dots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="pin-pad">
+      <button onclick="pinInput('create',1)">1</button><button onclick="pinInput('create',2)">2</button><button onclick="pinInput('create',3)">3</button>
+      <button onclick="pinInput('create',4)">4</button><button onclick="pinInput('create',5)">5</button><button onclick="pinInput('create',6)">6</button>
+      <button onclick="pinInput('create',7)">7</button><button onclick="pinInput('create',8)">8</button><button onclick="pinInput('create',9)">9</button>
+      <button onclick="pinInput('create','clear')" style="font-size:18px">✕</button><button onclick="pinInput('create',0)">0</button><button onclick="pinInput('create','del')" style="font-size:18px">⌫</button>
+    </div>
+    <div id="create-pin-step" style="font-size:12px;color:var(--text-3);margin-top:8px">Ingresa tu nuevo PIN</div>
+  </div>
+</div>
+
+<!-- INGRESAR PIN -->
+<div class="auth-screen" id="enter-pin-screen" style="display:none">
+  <div class="auth-card">
+    <div style="font-size:40px;margin-bottom:8px">🔒</div>
+    <div class="auth-title">Ingresa tu PIN</div>
+    <div class="auth-sub" id="pin-user-name">Bienvenido</div>
+    <div class="auth-error" id="enter-pin-error"></div>
+    <div class="pin-dots" id="enter-pin-dots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="pin-pad">
+      <button onclick="pinInput('enter',1)">1</button><button onclick="pinInput('enter',2)">2</button><button onclick="pinInput('enter',3)">3</button>
+      <button onclick="pinInput('enter',4)">4</button><button onclick="pinInput('enter',5)">5</button><button onclick="pinInput('enter',6)">6</button>
+      <button onclick="pinInput('enter',7)">7</button><button onclick="pinInput('enter',8)">8</button><button onclick="pinInput('enter',9)">9</button>
+      <button onclick="pinInput('enter','clear')" style="font-size:18px">✕</button><button onclick="pinInput('enter',0)">0</button><button onclick="pinInput('enter','del')" style="font-size:18px">⌫</button>
+    </div>
+    <div style="margin-top:16px"><a onclick="showScreen('login-screen')" style="font-size:12px;color:var(--text-3);cursor:pointer;text-decoration:underline">Usar contraseña en su lugar</a></div>
+  </div>
+</div>
+
 <!-- APP -->
 <div id="app">
   <div class="sidebar">
@@ -294,6 +346,7 @@
     <div class="topbar">
       <span class="topbar-title" id="view-title">Dashboard</span>
       <button class="btn btn-sm" onclick="syncAll()">🔄 Sincronizar</button>
+      <button class="btn btn-sm" id="btn-logout-mobile" onclick="doLogout()" style="display:none">🚪 Salir</button>
     </div>
     <div class="content">
 
@@ -335,6 +388,21 @@
               </select>
             </div>
             <div class="form-group full"><label>Descripción / Justificación *</label><textarea id="f-descripcion" placeholder="Describe el gasto..."></textarea></div>
+          </div>
+          <!-- Abono previo -->
+          <div style="margin-top:14px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:0" id="abono-row">
+              <label style="font-size:13px;font-weight:500;flex:1;margin:0">¿Existe abono previo?</label>
+              <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+                <input type="checkbox" id="f-abono-toggle" onchange="toggleAbono(this)" style="opacity:0;width:0;height:0">
+                <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s" id="abono-slider"></span>
+              </label>
+            </div>
+            <div id="abono-monto-row" style="display:none;margin-top:12px">
+              <label style="font-size:12px;font-weight:500;color:var(--text-2);display:block;margin-bottom:4px">Monto abono previo ($CLP)</label>
+              <input type="number" id="f-abono-monto" placeholder="0" min="0" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text)">
+              <div style="font-size:11px;color:var(--green);margin-top:4px">💰 Este monto se registrará como saldo a favor</div>
+            </div>
           </div>
         </div>
         <div class="form-card">
@@ -487,7 +555,7 @@ async function initSheets(){
   if(!names.includes('Usuarios')) reqs.push({addSheet:{properties:{title:'Usuarios'}}});
   if(reqs.length) await sheetsReq('POST',':batchUpdate',{requests:reqs});
   if(!names.includes('Gastos'))
-    await updateRange('Gastos!A1:P1',[['ID','Fecha','Usuario','Email','Rol','Categoria','Monto','Proyecto','Descripcion','Estado','Comprobante_URL','Comprobante_Nombre','Fecha_Creacion','Aprobado_Por','Fecha_Aprobacion','Comentario']]);
+    await updateRange('Gastos!A1:T1',[['ID','Fecha','Usuario','Email','Rol','Categoria','Monto','Proyecto','Descripcion','Estado','Comprobante_URL','Comprobante_Nombre','Fecha_Creacion','Aprobado_Por','Fecha_Aprobacion','Comentario','Abono','Monto_Abono','Estado_Pago','Fecha_Pago']]);
   if(!names.includes('Usuarios')){
     await updateRange('Usuarios!A1:G1',[['ID','Nombre','Email','PasswordHash','Rol','Estado','Fecha_Registro']]);
     const h=await hashPass('admin123');
@@ -496,14 +564,17 @@ async function initSheets(){
 }
 
 // ── Usuarios ─────────────────────────────────────────────
-async function getAllUsers(){const rows=await getValues('Usuarios!A2:G500');return rows.filter(r=>r[0]&&r[0]!=='ELIMINADO').map(r=>({id:r[0]||'',name:r[1]||'',email:r[2]||'',passHash:r[3]||'',role:r[4]||'colaborador',status:r[5]||'pendiente',created:r[6]||''}));}
+async function getAllUsers(){const rows=await getValues('Usuarios!A2:H500');return rows.filter(r=>r[0]&&r[0]!=='ELIMINADO').map(r=>({id:r[0]||'',name:r[1]||'',email:r[2]||'',passHash:r[3]||'',role:r[4]||'colaborador',status:r[5]||'pendiente',created:r[6]||'',pinHash:r[7]||''}));}
 async function findUserRow(email){const rows=await getValues('Usuarios!A2:G500');for(let i=0;i<rows.length;i++)if((rows[i][2]||'').toLowerCase()===email.toLowerCase())return{idx:i+2,row:rows[i]};return null;}
 async function hashPass(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 
 // ── Auth ─────────────────────────────────────────────────
 let currentUser=null;
-function showScreen(id){['login-screen','register-screen','pending-screen'].forEach(s=>document.getElementById(s).style.display=s===id?'flex':'none');}
+function showScreen(id){['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen'].forEach(s=>document.getElementById(s).style.display=s===id?'flex':'none');}
 function showAuthError(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
+
+// Usuario temporal durante flujo de login
+let _loginUser = null;
 
 async function doLogin(){
   const email=document.getElementById('l-email').value.trim();
@@ -518,9 +589,19 @@ async function doLogin(){
     if(u.passHash!==await hashPass(pass)){showAuthError('login-error','Contraseña incorrecta');return;}
     if(u.status==='pendiente'){showScreen('pending-screen');return;}
     if(u.status!=='activo'){showAuthError('login-error','Tu cuenta está inactiva. Contacta al administrador.');return;}
-    currentUser={id:u.id,name:u.name,email:u.email,role:u.role};
-    localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
-    startApp();
+    _loginUser=u;
+    if(u.pinHash){
+      // Ya tiene PIN → ir a pantalla de ingreso PIN
+      document.getElementById('pin-user-name').textContent='Hola, '+u.name.split(' ')[0];
+      showScreen('enter-pin-screen');
+      resetPinUI('enter');
+    } else {
+      // Primera vez → crear PIN
+      showScreen('create-pin-screen');
+      resetPinUI('create');
+      window._pinStep='first';
+      window._pinFirst='';
+    }
   }catch(e){showAuthError('login-error','Error de conexión: '+e.message);}
   finally{btn.disabled=false;btn.textContent='Ingresar →';}
 }
@@ -546,9 +627,89 @@ async function doRegister(){
   finally{btn.disabled=false;btn.textContent='Crear cuenta →';}
 }
 
+
+// ── PIN ──────────────────────────────────────────────────────
+let _pinBuffer={create:'',enter:''};
+
+function resetPinUI(type){
+  _pinBuffer[type]='';
+  updatePinDots(type);
+  const errId=type==='create'?'create-pin-error':'enter-pin-error';
+  document.getElementById(errId).style.display='none';
+  if(type==='create'){
+    document.getElementById('create-pin-step').textContent='Ingresa tu nuevo PIN';
+    window._pinStep='first'; window._pinFirst='';
+  }
+}
+
+function updatePinDots(type){
+  const dots=document.getElementById(type+'-pin-dots').querySelectorAll('span');
+  const len=_pinBuffer[type].length;
+  dots.forEach((d,i)=>d.classList.toggle('filled',i<len));
+}
+
+async function pinInput(type,val){
+  const buf=_pinBuffer[type];
+  if(val==='clear'){_pinBuffer[type]='';updatePinDots(type);return;}
+  if(val==='del'){_pinBuffer[type]=buf.slice(0,-1);updatePinDots(type);return;}
+  if(buf.length>=4) return;
+  _pinBuffer[type]=buf+val;
+  updatePinDots(type);
+  if(_pinBuffer[type].length===4){
+    if(type==='create') await handleCreatePin();
+    else await handleEnterPin();
+  }
+}
+
+async function handleCreatePin(){
+  const pin=_pinBuffer['create'];
+  if(window._pinStep==='first'){
+    window._pinFirst=pin;
+    window._pinStep='confirm';
+    _pinBuffer['create']='';
+    updatePinDots('create');
+    document.getElementById('create-pin-step').textContent='Confirma tu PIN';
+    document.getElementById('create-pin-error').style.display='none';
+  } else {
+    if(pin!==window._pinFirst){
+      showAuthError('create-pin-error','Los PIN no coinciden, intenta de nuevo');
+      _pinBuffer['create']=''; updatePinDots('create');
+      window._pinStep='first'; window._pinFirst='';
+      document.getElementById('create-pin-step').textContent='Ingresa tu nuevo PIN';
+      return;
+    }
+    // Guardar PIN en Sheets
+    try{
+      const pinHash=await hashPass(pin);
+      const found=await findUserRow(_loginUser.email);
+      if(found){
+        await updateRange('Usuarios!A'+found.idx+':H'+found.idx,
+          [found.row[0],found.row[1],found.row[2],found.row[3],found.row[4],found.row[5],found.row[6]||'',pinHash]);
+      }
+      currentUser={id:_loginUser.id,name:_loginUser.name,email:_loginUser.email,role:_loginUser.role};
+      localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
+      showToast('PIN creado correctamente ✓','success');
+      startApp();
+    }catch(e){showAuthError('create-pin-error','Error guardando PIN: '+e.message);}
+  }
+}
+
+async function handleEnterPin(){
+  const pin=_pinBuffer['enter'];
+  const pinHash=await hashPass(pin);
+  if(pinHash===_loginUser.pinHash){
+    currentUser={id:_loginUser.id,name:_loginUser.name,email:_loginUser.email,role:_loginUser.role};
+    localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
+    startApp();
+  } else {
+    showAuthError('enter-pin-error','PIN incorrecto');
+    _pinBuffer['enter']=''; updatePinDots('enter');
+  }
+}
+
 function doLogout(){
   localStorage.removeItem('gastosapp_session');
-  currentUser=null;accessToken=null;
+  currentUser=null;accessToken=null;_loginUser=null;
   document.getElementById('app').style.display='none';
   showScreen('login-screen');
 }
@@ -585,7 +746,7 @@ function showView(id,el){
 
 // ── Data ──────────────────────────────────────────────────
 let allData=[],selectedFile=null;
-function r2o(r){return{id:r[0]||'',fecha:r[1]||'',usuario:r[2]||'',email:r[3]||'',rol:r[4]||'',categoria:r[5]||'',monto:parseFloat(r[6])||0,proyecto:r[7]||'',descripcion:r[8]||'',estado:r[9]||'',comprobante_url:r[10]||'',comprobante_nombre:r[11]||'',fecha_creacion:r[12]||'',aprobado_por:r[13]||'',fecha_aprobacion:r[14]||'',comentario:r[15]||''};}
+function r2o(r){return{id:r[0]||'',fecha:r[1]||'',usuario:r[2]||'',email:r[3]||'',rol:r[4]||'',categoria:r[5]||'',monto:parseFloat(r[6])||0,proyecto:r[7]||'',descripcion:r[8]||'',estado:r[9]||'',comprobante_url:r[10]||'',comprobante_nombre:r[11]||'',fecha_creacion:r[12]||'',aprobado_por:r[13]||'',fecha_aprobacion:r[14]||'',comentario:r[15]||'',abono:r[16]||'NO',abono_monto:parseFloat(r[17])||0,estado_pago:r[18]||'pendiente_pago',fecha_pago:r[19]||''};}
 async function loadAllData(){try{allData=(await getValues('Gastos!A2:P1000')).map(r2o);renderDashboard();updatePendingCount();populateMesFilter();}catch(e){showToast('Error: '+e.message,'error');}}
 function syncAll(){showToast('Sincronizando...','info');loadAllData().then(()=>showToast('Actualizado ✓','success'));}
 function updatePendingCount(){const n=allData.filter(r=>r.estado==='pendiente').length;const b=document.getElementById('pending-count');b.textContent=n;b.style.display=n>0?'':'none';document.getElementById('stat-pending').textContent=n;}
@@ -623,6 +784,15 @@ function renderDashboard(){
 }
 
 // ── Nueva rendición ───────────────────────────────────────
+function toggleAbono(cb){
+  const row=document.getElementById('abono-monto-row');
+  const slider=document.getElementById('abono-slider');
+  row.style.display=cb.checked?'block':'none';
+  slider.style.background=cb.checked?'var(--purple)':'#ccc';
+  slider.style.transform=cb.checked?'':'';
+  if(!cb.checked) document.getElementById('f-abono-monto').value='';
+}
+
 function handleFileSelect(input){
   const f=input.files[0];if(!f)return;
   if(f.size>10*1024*1024){showToast('Archivo muy grande (máx 10 MB)','error');return;}
@@ -649,6 +819,8 @@ async function uploadToDrive(file,gastoId){
 
 async function submitGasto(estado){
   const fecha=document.getElementById('f-fecha').value,categoria=document.getElementById('f-categoria').value,monto=document.getElementById('f-monto').value,proyecto=document.getElementById('f-proyecto').value,descripcion=document.getElementById('f-descripcion').value;
+  const abonoToggle=document.getElementById('f-abono-toggle')?.checked||false;
+  const abonoMonto=abonoToggle?(document.getElementById('f-abono-monto')?.value||'0'):'0';
   if(!fecha||!categoria||!monto||!descripcion){showToast('Completa los campos obligatorios (*)','error');return;}
   if(!proyecto){showToast('Selecciona un centro de costo','error');return;}
   const btn=document.getElementById('btn-enviar');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Guardando...';
@@ -672,7 +844,7 @@ async function submitGasto(estado){
     } else {
       const id='G'+Date.now();let compURL='',compNombre='';
       if(selectedFile){showToast('Subiendo comprobante a Drive...','info');compURL=await uploadToDrive(selectedFile,id);compNombre=selectedFile.name;}
-      const row=[id,fecha,currentUser.name,currentUser.email,currentUser.role,categoria,monto,proyecto,descripcion,estado,compURL,compNombre,new Date().toISOString(),'','',''];
+      const row=[id,fecha,currentUser.name,currentUser.email,currentUser.role,categoria,monto,proyecto,descripcion,estado,compURL,compNombre,new Date().toISOString(),'','','',abonoToggle?'SI':'NO',abonoMonto,'pendiente_pago',''];
       await appendRow('Gastos',row);allData.push(r2o(row.map(String)));
       showToast(estado==='borrador'?'Borrador guardado ✓':'¡Enviado para aprobación! ✓','success');
     }
@@ -683,6 +855,8 @@ async function submitGasto(estado){
     document.getElementById('upload-sub').textContent='PDF, JPG o PNG · máx. 10 MB · se sube a Google Drive';
     document.getElementById('file-input').value='';
     document.getElementById('btn-enviar').innerHTML='📤 Enviar para aprobación';
+    const abonoTgl=document.getElementById('f-abono-toggle');
+    if(abonoTgl){abonoTgl.checked=false;toggleAbono(abonoTgl);}
   }catch(e){showToast('Error: '+e.message,'error');}
   finally{btn.disabled=false;}
 }
@@ -695,7 +869,7 @@ function renderMisRendiciones(){
   data=[...data].reverse();document.getElementById('mis-count').textContent=data.length+' registros';
   const b=document.getElementById('mis-table-body');
   if(!data.length){b.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Sin rendiciones con esos filtros</div></div>';return;}
-  b.innerHTML=`<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Comprobante</th><th>Estado</th><th>Comentario</th><th></th></tr></thead><tbody>${data.map(r=>`<tr><td>${r.fecha}</td><td>${r.descripcion.substring(0,35)}${r.descripcion.length>35?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${r.comprobante_url?`<a href="${r.comprobante_url}" target="_blank" style="color:var(--purple);font-size:12px">📎 Ver</a>`:'<span style="color:var(--text-3)">—</span>'}</td><td>${bh(r.estado)}</td><td style="font-size:12px;color:var(--text-2)">${r.comentario||'—'}</td><td>${r.estado==='rechazado'?`<button class="btn btn-sm" onclick="editarRechazada('${r.id}')">✏️ Corregir</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+  b.innerHTML=`<table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Abono</th><th>Comprobante</th><th>Estado</th><th>Pago</th><th></th></tr></thead><tbody>${data.map(r=>`<tr><td>${r.fecha}</td><td>${r.descripcion.substring(0,30)}${r.descripcion.length>30?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${r.abono==='SI'?`<span style='color:var(--green);font-size:12px'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'—'}</td><td>${r.comprobante_url?`<a href='${r.comprobante_url}' target='_blank' style='color:var(--purple);font-size:12px'>📎 Ver</a>`:'<span style="color:var(--text-3)">—</span>'}</td><td>${bh(r.estado)}</td><td>${r.estado==='aprobado'?(r.estado_pago==='pagado'?`<span class='badge badge-approved'>💳 Pagado<br><span style='font-size:10px'>${r.fecha_pago}</span></span>`:`<span class='badge badge-pending'>⏳ Pendiente</span>`):'—'}</td><td>${r.estado==='rechazado'?`<button class='btn btn-sm' onclick='editarRechazada("${r.id}")'>✏️ Corregir</button>`:''}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ── Editar rendición rechazada ────────────────────────────
@@ -714,7 +888,7 @@ function editarRechazada(id){
 
 // ── Aprobaciones ──────────────────────────────────────────
 function renderAprobaciones(){
-  const pend=allData.filter(r=>r.estado==='pendiente');
+  const pend=allData.filter(r=>r.estado==='pendiente'||( (r.estado==='aprobado')&&(r.estado_pago!=='pagado')));
   document.getElementById('aprobaciones-count').textContent=pend.length+' rendición(es) por revisar';
   const list=document.getElementById('aprobaciones-list');
   if(!pend.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo al día!</div></div>';return;}
@@ -731,11 +905,13 @@ function renderAprobaciones(){
         <div class="detail-item"><div class="label">Monto</div><div class="val amount-big">$${r.monto.toLocaleString('es-CL')}</div></div>
         <div class="detail-item"><div class="label">Fecha</div><div class="val">${r.fecha}</div></div>
         <div class="detail-item"><div class="label">Comprobante</div><div class="val">${r.comprobante_url?`<a href="${r.comprobante_url}" target="_blank" style="color:var(--purple)">📎 ${r.comprobante_nombre||'Ver'}</a>`:'—'}</div></div>
+        <div class="detail-item"><div class="label">Abono previo</div><div class="val">${r.abono==='SI'?`<span style='color:var(--green)'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'No'}</div></div>
       </div>
       <div style="margin-bottom:10px"><input type="text" id="comment-${r.id}" placeholder="Comentario (opcional)..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text)"></div>
       <div class="approval-actions">
         <button class="btn btn-danger btn-sm" onclick="resolverGasto('${r.id}','rechazado')">✗ Rechazar</button>
         <button class="btn btn-primary btn-sm" onclick="resolverGasto('${r.id}','aprobado')">✓ Aprobar</button>
+        ${r.estado==='aprobado'?`<button class="btn btn-sm" style="background:${r.estado_pago==='pagado'?'var(--green)':'var(--amber-light)'};color:${r.estado_pago==='pagado'?'white':'#854F0B'};border-color:${r.estado_pago==='pagado'?'var(--green)':'var(--amber)'}" onclick="marcarPago('${r.id}')">💳 ${r.estado_pago==='pagado'?'Pagado ✓':'Marcar pagado'}</button>`:''}
       </div>
     </div>`).join('');
 }
@@ -756,6 +932,22 @@ async function resolverGasto(id,nuevoEstado){
     const n=allData.filter(r=>r.estado==='pendiente').length;
     document.getElementById('aprobaciones-count').textContent=n+' rendición(es) por revisar';
     if(!n) document.getElementById('aprobaciones-list').innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo al día!</div></div>';
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function marcarPago(id){
+  const idx=allData.findIndex(r=>r.id===id);if(idx===-1)return;
+  try{
+    const rows=await getValues('Gastos!A2:T1000');
+    let ri=-1;for(let i=0;i<rows.length;i++)if(rows[i][0]===id){ri=i+2;break;}
+    if(ri===-1)throw new Error('Fila no encontrada');
+    const r=allData[idx];
+    const fechaPago=new Date().toISOString().split('T')[0];
+    // Actualizar columnas Q-T (índices 16-19)
+    await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',fechaPago]);
+    allData[idx]={...r,estado_pago:'pagado',fecha_pago:fechaPago};
+    showToast('Rendición marcada como pagada ✓','success');
+    renderAprobaciones();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
@@ -788,11 +980,22 @@ async function renderUsuarios(){
           ${u.email!==currentUser.email?`
             <button class="btn btn-sm btn-danger" onclick="changeUserStatus('${u.email}','${u.status==='activo'?'inactivo':'activo'}').then(()=>{showToast('Actualizado','info');renderUsuarios()})">${u.status==='activo'?'Suspender':'Reactivar'}</button>
             <button class="btn btn-sm" onclick="resetPassword('${u.email}')" title="Restablecer contraseña">🔑 Reset clave</button>
+            <button class="btn btn-sm" onclick="resetPin('${u.email}')" title="Resetear PIN">🔢 Reset PIN</button>
             <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('${u.email}','${u.name}')" title="Eliminar usuario">🗑️</button>
           `:'<span style="font-size:11px;color:var(--text-3)">(tú)</span>'}
         </td>
       </tr>`).join('')}
     </tbody></table>`;
+  }catch(e){showToast('Error: '+e.message,'error');}
+}
+
+async function resetPin(email){
+  if(!confirm('¿Resetear el PIN de '+email+'?\nEl usuario deberá crear uno nuevo al iniciar sesión.')) return;
+  try{
+    const found=await findUserRow(email);if(!found)return;
+    const r=found.row;
+    await updateRange('Usuarios!A'+found.idx+':H'+found.idx,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'','']);
+    showToast('PIN reseteado ✓. El usuario deberá crear uno nuevo.','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
