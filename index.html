@@ -2,14 +2,46 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#CC0000">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Yuval Gastos">
 <link rel="manifest" href="manifest.json">
 <title>Yuval Gastos App</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+function enterMobileApp(){
+  const el = document.getElementById('mobile-home');
+  if(el){
+    el.style.display='none';
+  }
+}
+
+function calculateUserBalance(userId){
+  if(typeof expenses === 'undefined') return 0;
+
+  const userExpenses = expenses.filter(e => e.userId === userId);
+
+  const totalAdvances = userExpenses
+    .filter(e => Number(e.advanceAmount || 0) > 0)
+    .reduce((sum,e)=> sum + Number(e.advanceAmount || 0),0);
+
+  const approvedExpenses = userExpenses
+    .filter(e => e.status === 'approved')
+    .reduce((sum,e)=> sum + Number(e.amount || 0),0);
+
+  return totalAdvances - approvedExpenses;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('button').forEach(button=>{
+    if(button.onclick){
+      button.addEventListener('touchstart', button.onclick);
+    }
+  });
+});
+
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
   :root {
@@ -227,9 +259,41 @@
     .stat-value{font-size:16px;}
     .auth-card{padding:28px 18px;}
   }
+
+.mobile-home-screen{
+  position:fixed;
+  inset:0;
+  background:#ffffff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:99999;
+  padding:24px;
+}
+.mobile-home-logo{
+  width:180px;
+  max-width:80%;
+  margin-bottom:24px;
+}
+.mobile-home-content{text-align:center;}
+.mobile-home-content h1{font-size:26px;margin-bottom:8px;}
+.mobile-home-content p{color:var(--text-2);margin-bottom:20px;}
+
 </style>
 </head>
 <body>
+
+<div id="mobile-home" class="mobile-home-screen">
+  <div class="mobile-home-content">
+    <h1>Yuval Gastos</h1>
+    <p>Gestión de rendiciones y gastos</p>
+    <button class="btn btn-primary" onclick="enterMobileApp()">
+      Ingresar
+    </button>
+  </div>
+</div>
+
 
 <!-- OVERLAY INICIAL -->
 <div class="init-overlay" id="init-overlay">
@@ -436,6 +500,24 @@
       <div class="view" id="view-nueva">
         <div class="form-card">
           <div class="form-card-title">📝 Información del gasto</div>
+          <!-- Abono previo PRIMERO -->
+          <div style="margin-bottom:14px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:0" id="abono-row">
+              <label style="font-size:13px;font-weight:500;flex:1;margin:0">¿Existe abono previo?</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="abono-label" style="font-size:12px;font-weight:600;color:#ccc;transition:color .3s">NO</span>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+                  <input type="checkbox" id="f-abono-toggle" onchange="toggleAbono(this)" style="opacity:0;width:0;height:0">
+                  <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s" id="abono-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div id="abono-monto-row" style="display:none;margin-top:12px">
+              <label style="font-size:12px;font-weight:500;color:var(--text-2);display:block;margin-bottom:4px">Monto abono previo ($CLP)</label>
+              <input type="number" id="f-abono-monto" placeholder="0" min="0" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text)">
+              <div style="font-size:11px;color:var(--green);margin-top:4px">💰 Este monto se registrará como saldo a favor</div>
+            </div>
+          </div>
           <div class="form-grid">
             <div class="form-group"><label>Fecha *</label><input type="date" id="f-fecha"></div>
             <div class="form-group"><label>Categoría *</label>
@@ -458,24 +540,7 @@
             </div>
             <div class="form-group full"><label>Descripción / Justificación *</label><textarea id="f-descripcion" placeholder="Describe el gasto..."></textarea></div>
           </div>
-          <!-- Abono previo -->
-          <div style="margin-top:14px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:0" id="abono-row">
-              <label style="font-size:13px;font-weight:500;flex:1;margin:0">¿Existe abono previo?</label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span id="abono-label" style="font-size:12px;font-weight:600;color:#ccc;transition:color .3s">NO</span>
-                <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
-                  <input type="checkbox" id="f-abono-toggle" onchange="toggleAbono(this)" style="opacity:0;width:0;height:0">
-                  <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s" id="abono-slider"></span>
-                </label>
-              </div>
-            </div>
-            <div id="abono-monto-row" style="display:none;margin-top:12px">
-              <label style="font-size:12px;font-weight:500;color:var(--text-2);display:block;margin-bottom:4px">Monto abono previo ($CLP)</label>
-              <input type="number" id="f-abono-monto" placeholder="0" min="0" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--surface);color:var(--text)">
-              <div style="font-size:11px;color:var(--green);margin-top:4px">💰 Este monto se registrará como saldo a favor</div>
-            </div>
-          </div>
+
         </div>
         <div class="form-card">
           <div class="form-card-title">📎 Comprobante</div>
@@ -784,9 +849,15 @@ async function doRegister(){
     const users=await getAllUsers();
     if(users.find(u=>u.email.toLowerCase()===email.toLowerCase())){showAuthError('reg-error','Ese email ya está registrado');return;}
     await appendRow('Usuarios',['U'+Date.now(),name,email,await hashPass(pass),'colaborador','pendiente',new Date().toISOString()]);
+    // Mostrar éxito y cerrar automáticamente
+    document.getElementById('reg-error').style.cssText='display:block;background:#d4edda;color:#155724;border:1px solid #c3e6cb;padding:10px;border-radius:8px';
+    document.getElementById('reg-error').textContent='✓ Cuenta creada con éxito. Un administrador debe aprobarla.';
+    btn.textContent='✓ Cuenta creada';
+    setTimeout(()=>showScreen('login-screen'),2500);
+    return;
     showToast('¡Cuenta creada! Espera la aprobación del admin.','success');
     setTimeout(()=>showScreen('login-screen'),2000);
-  }catch(e){showAuthError('reg-error','Error: '+e.message);}
+  }catch(e){document.getElementById('reg-error').style.cssText='display:block;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;padding:10px;border-radius:8px';document.getElementById('reg-error').textContent='✗ Error al crear cuenta: '+e.message;}
   finally{btn.disabled=false;btn.textContent='Crear cuenta →';}
 }
 
@@ -978,6 +1049,8 @@ function renderDashboard(){
     document.getElementById('stat-approved-count').textContent=aprobadas.length+' aprobadas';
     document.getElementById('stat-total').textContent=myData.length;
     document.getElementById('stat-pending').textContent=pendAprobacion.length;
+    document.getElementById('stat-user').textContent=currentUser.name.split(' ')[0];
+    document.getElementById('stat-user-role').textContent='Colaborador';
     // Resumen financiero colaborador
     const ccEl=document.getElementById('dashboard-cc');
     if(ccEl){
@@ -1099,7 +1172,7 @@ async function submitGasto(estado){
       if(selectedFile){showToast('Subiendo comprobante a Drive...','info');compURL=await uploadToDrive(selectedFile,id);compNombre=selectedFile.name;}
       const row=[id,fecha,currentUser.name,currentUser.email,currentUser.role,categoria,monto,proyecto,descripcion,estado,compURL,compNombre,new Date().toISOString(),'','','',abonoToggle?'SI':'NO',abonoMonto,'pendiente_pago',''];
       await appendRow('Gastos',row);allData.push(r2o(row.map(String)));
-      showToast(estado==='borrador'?'Borrador guardado ✓':'¡Enviado para aprobación! ✓','success');
+      showToast(estado==='borrador'?'Borrador guardado ✓':'✅ Rendición enviada para aprobación','success');
     }
     updatePendingCount();
     ['f-categoria','f-monto','f-proyecto','f-descripcion'].forEach(i=>document.getElementById(i).value='');
@@ -1729,6 +1802,38 @@ async function syncServerTime(){
     console.warn('No se pudo sincronizar hora, usando hora local:',e.message);
   }
 }
+
+function enterMobileApp(){
+  const el = document.getElementById('mobile-home');
+  if(el){
+    el.style.display='none';
+  }
+}
+
+function calculateUserBalance(userId){
+  if(typeof expenses === 'undefined') return 0;
+
+  const userExpenses = expenses.filter(e => e.userId === userId);
+
+  const totalAdvances = userExpenses
+    .filter(e => Number(e.advanceAmount || 0) > 0)
+    .reduce((sum,e)=> sum + Number(e.advanceAmount || 0),0);
+
+  const approvedExpenses = userExpenses
+    .filter(e => e.status === 'approved')
+    .reduce((sum,e)=> sum + Number(e.amount || 0),0);
+
+  return totalAdvances - approvedExpenses;
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('button').forEach(button=>{
+    if(button.onclick){
+      button.addEventListener('touchstart', button.onclick);
+    }
+  });
+});
+
 </script>
 </body>
 </html>
