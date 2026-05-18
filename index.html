@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#CC0000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Yuval Gastos">
+<link rel="manifest" href="manifest.json">
 <title>Yuval Gastos App</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -862,7 +867,15 @@ function bh(e){const m={pendiente:'badge-pending',aprobado:'badge-approved',rech
 function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(window._tt);window._tt=setTimeout(()=>t.className='',3500);}
 function setInitMsg(msg){const el=document.getElementById('init-msg');if(el)el.textContent=msg;}
 
-// ── Init ──────────────────────────────────────────────────
+// ── Service Worker (PWA) ──────────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW registrado:', r.scope))
+      .catch(e => console.log('SW error:', e));
+  });
+}
+
 window.addEventListener('DOMContentLoaded',async()=>{
   try{
     setInitMsg('Sincronizando hora con servidor...');
