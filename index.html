@@ -23,14 +23,12 @@ function calculateUserBalance(userId){
   const userExpenses = expenses.filter(e => e.userId === userId);
 
   const totalAdvances = userExpenses
-    .filter(e => Number(e.advanceAmount || 0) > 0)
-    .reduce((sum,e)=> sum + Number(e.advanceAmount || 0),0);
+    .reduce((sum,e)=> sum + Number(e.advanceAmount || e.abono || 0),0);
 
-  const approvedExpenses = userExpenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum,e)=> sum + Number(e.amount || 0),0);
+  const totalRendered = userExpenses
+    .reduce((sum,e)=> sum + Number(e.amount || e.receivedAmount || e.rendicion || 0),0);
 
-  return totalAdvances - approvedExpenses;
+  return totalAdvances - totalRendered;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -39,6 +37,25 @@ document.addEventListener('DOMContentLoaded',()=>{
       button.addEventListener('touchstart', button.onclick);
     }
   });
+});
+
+
+function filterDashboardForCurrentUser(){
+
+  if(typeof currentUser === 'undefined') return;
+  if(currentUser.role === 'admin') return;
+
+  if(typeof expenses !== 'undefined'){
+    expenses = expenses.filter(e => e.userId === currentUser.id);
+  }
+
+  if(typeof renderDashboard === 'function'){
+    renderDashboard();
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(filterDashboardForCurrentUser,500);
 });
 
 </script>
@@ -1816,14 +1833,12 @@ function calculateUserBalance(userId){
   const userExpenses = expenses.filter(e => e.userId === userId);
 
   const totalAdvances = userExpenses
-    .filter(e => Number(e.advanceAmount || 0) > 0)
-    .reduce((sum,e)=> sum + Number(e.advanceAmount || 0),0);
+    .reduce((sum,e)=> sum + Number(e.advanceAmount || e.abono || 0),0);
 
-  const approvedExpenses = userExpenses
-    .filter(e => e.status === 'approved')
-    .reduce((sum,e)=> sum + Number(e.amount || 0),0);
+  const totalRendered = userExpenses
+    .reduce((sum,e)=> sum + Number(e.amount || e.receivedAmount || e.rendicion || 0),0);
 
-  return totalAdvances - approvedExpenses;
+  return totalAdvances - totalRendered;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1832,6 +1847,25 @@ document.addEventListener('DOMContentLoaded',()=>{
       button.addEventListener('touchstart', button.onclick);
     }
   });
+});
+
+
+function filterDashboardForCurrentUser(){
+
+  if(typeof currentUser === 'undefined') return;
+  if(currentUser.role === 'admin') return;
+
+  if(typeof expenses !== 'undefined'){
+    expenses = expenses.filter(e => e.userId === currentUser.id);
+  }
+
+  if(typeof renderDashboard === 'function'){
+    renderDashboard();
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(filterDashboardForCurrentUser,500);
 });
 
 </script>
