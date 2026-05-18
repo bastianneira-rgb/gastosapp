@@ -154,6 +154,16 @@
   .pin-pad button:hover{background:var(--purple-light);border-color:var(--purple);}
   .pin-pad button:active{transform:scale(.95);background:var(--purple);color:white;}
 
+
+  /* Pull to refresh */
+  .pull-indicator{position:fixed;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:center;background:var(--purple);color:white;font-size:13px;font-weight:500;transform:translateY(-50px);transition:transform .3s;z-index:300;}
+  .pull-indicator.visible{transform:translateY(0);}
+
+
+  /* Pull to refresh */
+  .ptr-indicator{position:fixed;top:0;left:0;right:0;height:0;background:var(--purple);display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:500;overflow:hidden;transition:height .2s;z-index:300;}
+  .ptr-indicator.visible{height:48px;}
+
   /* ── RESPONSIVE MÓVIL ── */
   @media(max-width:768px){
     :root{--sidebar-w:0px;}
@@ -314,6 +324,41 @@
   </div>
 </div>
 
+
+<!-- PERFIL BANCARIO -->
+<div class="auth-screen" id="perfil-screen" style="display:none">
+  <div class="auth-card">
+    <div style="font-size:40px;margin-bottom:8px">🏦</div>
+    <div class="auth-title">Completa tu perfil</div>
+    <div class="auth-sub">Para procesar tus pagos necesitamos tus datos bancarios. Solo se solicita una vez.</div>
+    <div class="auth-error" id="perfil-error"></div>
+    <div class="auth-form">
+      <label>RUT *</label>
+      <input type="text" id="p-rut" placeholder="12.345.678-9">
+      <label>Banco *</label>
+      <select id="p-banco" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:14px">
+        <option value="">Seleccionar banco...</option>
+        <option>Banco de Chile</option><option>Banco Santander</option><option>Banco Estado</option>
+        <option>Banco BCI</option><option>Banco Falabella</option><option>Banco Ripley</option>
+        <option>Banco Itaú</option><option>Banco Security</option><option>Banco BICE</option>
+        <option>Banco Scotiabank</option><option>Coopeuch</option><option>Tenpo</option><option>Otro</option>
+      </select>
+      <label>Tipo de cuenta *</label>
+      <select id="p-tipo" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text);margin-bottom:14px">
+        <option value="">Seleccionar tipo...</option>
+        <option>Cuenta Corriente</option><option>Cuenta Vista</option><option>Cuenta RUT</option><option>Cuenta Ahorro</option>
+      </select>
+      <label>N° de cuenta *</label>
+      <input type="text" id="p-numcuenta" placeholder="00000000">
+      <button class="btn-auth" id="btn-perfil" onclick="guardarPerfil()">Guardar datos bancarios →</button>
+    </div>
+    <div style="margin-top:14px"><a onclick="saltarPerfil()" style="font-size:12px;color:var(--text-3);cursor:pointer;text-decoration:underline">Completar más tarde</a></div>
+  </div>
+</div>
+
+
+<!-- COMPLETAR PERFIL BANCARIO -->
+
 <!-- APP -->
 <div id="app">
   <div class="sidebar">
@@ -355,6 +400,10 @@
     <div class="content">
 
       <div class="view active" id="view-dashboard">
+        <div id="perfil-alert" style="display:none;background:var(--amber-light);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:10px">
+          ⚠️ <span>Completa tus <strong>datos bancarios</strong> para recibir pagos.</span>
+          <button class="btn btn-sm" style="margin-left:auto;border-color:var(--amber)" onclick="showScreen('perfil-screen')">Completar ahora</button>
+        </div>
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">⏳ Pendientes</div><div class="stat-value" id="stat-pending">0</div><div class="stat-sub">por aprobar</div></div>
           <div class="stat-card"><div class="stat-label">✅ Aprobadas (mes)</div><div class="stat-value" style="color:var(--green)" id="stat-approved-amount">$0</div><div class="stat-sub" id="stat-approved-count">0 rendiciones</div></div>
@@ -479,6 +528,9 @@
   </div>
 </div>
 
+
+<div class="pull-indicator" id="pull-indicator">↓ Suelta para actualizar</div>
+<div class="ptr-indicator" id="ptr-indicator">↓ Suelta para actualizar</div>
 <div id="toast"></div>
 
 <script>
@@ -579,13 +631,13 @@ async function initSheets(){
 }
 
 // ── Usuarios ─────────────────────────────────────────────
-async function getAllUsers(){const rows=await getValues('Usuarios!A2:H500');return rows.filter(r=>r[0]&&r[0]!=='ELIMINADO').map(r=>({id:r[0]||'',name:r[1]||'',email:r[2]||'',passHash:r[3]||'',role:r[4]||'colaborador',status:r[5]||'pendiente',created:r[6]||'',pinHash:r[7]||''}));}
+async function getAllUsers(){const rows=await getValues('Usuarios!A2:L500');return rows.filter(r=>r[0]&&r[0]!=='ELIMINADO').map(r=>({id:r[0]||'',name:r[1]||'',email:r[2]||'',passHash:r[3]||'',role:r[4]||'colaborador',status:r[5]||'pendiente',created:r[6]||'',pinHash:r[7]||'',rut:r[8]||'',banco:r[9]||'',tipo_cuenta:r[10]||'',num_cuenta:r[11]||''}));}
 async function findUserRow(email){const rows=await getValues('Usuarios!A2:G500');for(let i=0;i<rows.length;i++)if((rows[i][2]||'').toLowerCase()===email.toLowerCase())return{idx:i+2,row:rows[i]};return null;}
 async function hashPass(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 
 // ── Auth ─────────────────────────────────────────────────
 let currentUser=null;
-function showScreen(id){['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen'].forEach(s=>document.getElementById(s).style.display=s===id?'flex':'none');}
+function showScreen(id){['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen','perfil-screen'].forEach(s=>document.getElementById(s).style.display=s===id?'flex':'none');}
 function showAuthError(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
 
 // Usuario temporal durante flujo de login
@@ -642,6 +694,41 @@ async function doRegister(){
   finally{btn.disabled=false;btn.textContent='Crear cuenta →';}
 }
 
+
+
+// ── Perfil bancario ────────────────────────────────────────
+async function checkPerfilBancario(u){
+  if(u.role==='admin') return startApp();
+  if(u.rut&&u.banco&&u.numCuenta) return startApp();
+  showScreen('perfil-screen');
+}
+
+async function guardarPerfil(){
+  const rut=document.getElementById('p-rut').value.trim();
+  const banco=document.getElementById('p-banco').value;
+  const tipo=document.getElementById('p-tipo-cuenta').value;
+  const num=document.getElementById('p-num-cuenta').value.trim();
+  if(!rut||!banco||!tipo||!num){showAuthError('perfil-error','Completa todos los campos');return;}
+  const btn=document.getElementById('btn-perfil');btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    const found=await findUserRow(currentUser.email);
+    if(found){
+      const r=found.row;
+      await updateRange('Usuarios!A'+found.idx+':L'+found.idx,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'',r[7]||'',rut,banco,tipo,num]);
+    }
+    showToast('Datos bancarios guardados ✓','success');
+    startApp();
+  }catch(e){showAuthError('perfil-error','Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar datos bancarios →';}
+}
+
+function saltarPerfil(){
+  startApp();
+  // Mostrar recordatorio después de 3 segundos
+  setTimeout(()=>{
+    showToast('⚠️ Recuerda completar tus datos bancarios en tu perfil','info');
+  },3000);
+}
 
 // ── PIN ──────────────────────────────────────────────────────
 let _pinBuffer={create:'',enter:''};
@@ -704,7 +791,7 @@ async function handleCreatePin(){
       currentUser={id:_loginUser.id,name:_loginUser.name,email:_loginUser.email,role:_loginUser.role};
       localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
       showToast('PIN creado correctamente ✓','success');
-      startApp();
+      await checkPerfilBancario(_loginUser);
     }catch(e){showAuthError('create-pin-error','Error guardando PIN: '+e.message);}
   }
 }
@@ -715,7 +802,7 @@ async function handleEnterPin(){
   if(pinHash===_loginUser.pinHash){
     currentUser={id:_loginUser.id,name:_loginUser.name,email:_loginUser.email,role:_loginUser.role};
     localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
-    startApp();
+    await checkPerfilBancario(_loginUser);
   } else {
     showAuthError('enter-pin-error','PIN incorrecto');
     _pinBuffer['enter']=''; updatePinDots('enter');
@@ -731,7 +818,7 @@ function doLogout(){
 
 // ── App start ─────────────────────────────────────────────
 function startApp(){
-  ['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen'].forEach(s=>document.getElementById(s).style.display='none');
+  ['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen','perfil-screen'].forEach(s=>document.getElementById(s).style.display='none');
   document.getElementById('app').style.display='block';
   const ini=currentUser.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
   document.getElementById('sidebar-avatar').textContent=ini;
@@ -744,6 +831,8 @@ function startApp(){
   if(currentUser.role==='admin'||currentUser.role==='aprobador') document.getElementById('nav-pagos').style.display='flex';
   if(currentUser.role==='admin') document.getElementById('nav-usuarios').style.display='flex';
   loadAllData();
+  // Verificar perfil bancario para colaboradores
+  if(currentUser.role==='colaborador') setTimeout(checkPerfilBancario, 1500);
 }
 
 // ── Navigation ────────────────────────────────────────────
@@ -771,33 +860,64 @@ function updatePendingCount(){const n=allData.filter(r=>r.estado==='pendiente').
 // ── Dashboard ─────────────────────────────────────────────
 function renderDashboard(){
   const mes=new Date().toISOString().substring(0,7);
-  const ap=allData.filter(r=>r.estado==='aprobado'&&r.fecha_creacion.startsWith(mes));
-  document.getElementById('stat-approved-amount').textContent='$'+ap.reduce((s,r)=>s+r.monto,0).toLocaleString('es-CL');
-  document.getElementById('stat-approved-count').textContent=ap.length+' rendiciones';
-  document.getElementById('stat-total').textContent=allData.length;
-  const rec=[...allData].reverse().slice(0,8);
+  const isColaborador=currentUser&&currentUser.role==='colaborador';
+  const myData=isColaborador?allData.filter(r=>r.email===currentUser.email):allData;
+
+  if(isColaborador){
+    // Dashboard colaborador: solo sus datos
+    const misMes=myData.filter(r=>r.fecha_creacion.startsWith(mes));
+    const aprobadas=misMes.filter(r=>r.estado==='aprobado');
+    const pendAprobacion=misMes.filter(r=>r.estado==='pendiente');
+    const totalAprobado=aprobadas.reduce((s,r)=>s+r.monto,0);
+    const totalAbonos=aprobadas.reduce((s,r)=>s+r.abono_monto,0);
+    const pendPago=aprobadas.filter(r=>r.estado_pago!=='pagado').reduce((s,r)=>s+Math.max(0,r.monto-r.abono_monto),0);
+    const pagado=aprobadas.filter(r=>r.estado_pago==='pagado').reduce((s,r)=>s+r.monto,0);
+    const saldo=totalAbonos-pendPago;
+    document.getElementById('stat-approved-amount').textContent='$'+totalAprobado.toLocaleString('es-CL');
+    document.getElementById('stat-approved-count').textContent=aprobadas.length+' aprobadas';
+    document.getElementById('stat-total').textContent=myData.length;
+    document.getElementById('stat-pending').textContent=pendAprobacion.length;
+    // Resumen financiero colaborador
+    const ccEl=document.getElementById('dashboard-cc');
+    if(ccEl){
+      ccEl.innerHTML=`
+        <div class="stats-grid" style="margin-top:20px">
+          <div class="stat-card"><div class="stat-label">💰 Abonos recibidos</div><div class="stat-value" style="color:var(--green)">$${totalAbonos.toLocaleString('es-CL')}</div><div class="stat-sub">este mes</div></div>
+          <div class="stat-card"><div class="stat-label">⏳ Pendiente de pago</div><div class="stat-value" style="color:var(--amber)">$${pendPago.toLocaleString('es-CL')}</div><div class="stat-sub">por recibir</div></div>
+          <div class="stat-card"><div class="stat-label">✅ Pagado</div><div class="stat-value" style="color:var(--green)">$${pagado.toLocaleString('es-CL')}</div><div class="stat-sub">recibido</div></div>
+          <div class="stat-card"><div class="stat-label">${saldo>=0?'🟢 Saldo a favor':'🔴 Saldo pendiente'}</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'}">$${Math.abs(saldo).toLocaleString('es-CL')}</div><div class="stat-sub">${saldo>=0?'tienes a favor':'te deben'}</div></div>
+        </div>`;
+    }
+  } else {
+    // Dashboard admin/aprobador: todos los datos
+    const ap=allData.filter(r=>r.estado==='aprobado'&&r.fecha_creacion.startsWith(mes));
+    document.getElementById('stat-approved-amount').textContent='$'+ap.reduce((s,r)=>s+r.monto,0).toLocaleString('es-CL');
+    document.getElementById('stat-approved-count').textContent=ap.length+' rendiciones';
+    document.getElementById('stat-total').textContent=allData.length;
+    const cc={};
+    allData.filter(r=>r.fecha_creacion.startsWith(mes)).forEach(r=>{
+      const k=r.proyecto||'Sin asignar';
+      if(!cc[k])cc[k]={total:0,aprobado:0,pendiente:0,count:0};
+      cc[k].total+=r.monto;cc[k].count++;
+      if(r.estado==='aprobado')cc[k].aprobado+=r.monto;
+      if(r.estado==='pendiente')cc[k].pendiente+=r.monto;
+    });
+    const ccRows=Object.entries(cc).sort((a,b)=>b[1].total-a[1].total);
+    const ccEl=document.getElementById('dashboard-cc');
+    if(ccEl&&ccRows.length){
+      ccEl.innerHTML=`<div class="table-card" style="margin-top:20px">
+        <div class="table-header"><span class="table-header-title">📍 Resumen por centro de costo — ${mes}</span></div>
+        <table><thead><tr><th>Centro de costo</th><th>Rendiciones</th><th>Total</th><th>Aprobado</th><th>Pendiente</th></tr></thead>
+        <tbody>${ccRows.map(([k,v])=>`<tr><td><strong>${k}</strong></td><td>${v.count}</td><td>$${v.total.toLocaleString('es-CL')}</td><td style="color:var(--green)">$${v.aprobado.toLocaleString('es-CL')}</td><td style="color:var(--amber)">$${v.pendiente.toLocaleString('es-CL')}</td></tr>`).join('')}
+        </tbody></table>
+      </div>`;
+    }
+  }
+  // Tabla reciente: solo propias si colaborador
+  const rec=[...myData].reverse().slice(0,8);
   const b=document.getElementById('dashboard-table-body');
   if(!rec.length){b.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">Sin datos aún</div></div>';return;}
-  b.innerHTML=`<table><thead><tr><th>Usuario</th><th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Estado</th><th>Fecha</th></tr></thead><tbody>${rec.map(r=>`<tr><td>${r.usuario}</td><td>${r.descripcion.substring(0,35)}${r.descripcion.length>35?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${bh(r.estado)}</td><td>${r.fecha}</td></tr>`).join('')}</tbody></table>`;
-  // Resumen por centro de costo
-  const cc={};
-  allData.filter(r=>r.fecha_creacion.startsWith(mes)).forEach(r=>{
-    const k=r.proyecto||'Sin asignar';
-    if(!cc[k])cc[k]={total:0,aprobado:0,pendiente:0,count:0};
-    cc[k].total+=r.monto;cc[k].count++;
-    if(r.estado==='aprobado')cc[k].aprobado+=r.monto;
-    if(r.estado==='pendiente')cc[k].pendiente+=r.monto;
-  });
-  const ccRows=Object.entries(cc).sort((a,b)=>b[1].total-a[1].total);
-  const ccEl=document.getElementById('dashboard-cc');
-  if(ccEl&&ccRows.length){
-    ccEl.innerHTML=`<div class="table-card" style="margin-top:20px">
-      <div class="table-header"><span class="table-header-title">📍 Resumen por centro de costo — ${mes}</span></div>
-      <table><thead><tr><th>Centro de costo</th><th>Rendiciones</th><th>Total</th><th>Aprobado</th><th>Pendiente</th></tr></thead>
-      <tbody>${ccRows.map(([k,v])=>`<tr><td><strong>${k}</strong></td><td>${v.count}</td><td>$${v.total.toLocaleString('es-CL')}</td><td style="color:var(--green)">$${v.aprobado.toLocaleString('es-CL')}</td><td style="color:var(--amber)">$${v.pendiente.toLocaleString('es-CL')}</td></tr>`).join('')}
-      </tbody></table>
-    </div>`;
-  }
+  b.innerHTML=`<table><thead><tr>${!isColaborador?'<th>Usuario</th>':''}<th>Concepto</th><th>Categoría</th><th>Centro costo</th><th>Monto</th><th>Estado</th><th>Pago</th></tr></thead><tbody>${rec.map(r=>`<tr>${!isColaborador?`<td>${r.usuario}</td>`:''}<td>${r.descripcion.substring(0,30)}${r.descripcion.length>30?'...':''}</td><td>${r.categoria}</td><td>${r.proyecto||'—'}</td><td><strong>$${r.monto.toLocaleString('es-CL')}</strong></td><td>${bh(r.estado)}</td><td>${r.estado==='aprobado'?(r.estado_pago==='pagado'?'<span class="badge badge-approved">💳 Pagado</span>':'<span class="badge badge-pending">⏳ Pendiente</span>'):'—'}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ── Nueva rendición ───────────────────────────────────────
@@ -906,8 +1026,8 @@ function editarRechazada(id){
 
 // ── Aprobaciones ──────────────────────────────────────────
 function renderAprobaciones(){
-  const pend=allData.filter(r=>r.estado==='pendiente'||( (r.estado==='aprobado')&&(r.estado_pago!=='pagado')));
-  document.getElementById('aprobaciones-count').textContent=pend.length+' rendición(es) por revisar';
+  const pend=allData.filter(r=>r.estado==='pendiente');
+  document.getElementById('aprobaciones-count').textContent=pend.length+' rendición(es) por aprobar';
   const list=document.getElementById('aprobaciones-list');
   if(!pend.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo al día!</div></div>';return;}
   list.innerHTML=pend.map(r=>`
@@ -929,7 +1049,7 @@ function renderAprobaciones(){
       <div class="approval-actions">
         <button class="btn btn-danger btn-sm" onclick="resolverGasto('${r.id}','rechazado')">✗ Rechazar</button>
         <button class="btn btn-primary btn-sm" onclick="resolverGasto('${r.id}','aprobado')">✓ Aprobar</button>
-        ${r.estado==='aprobado'?`<button class="btn btn-sm" style="background:${r.estado_pago==='pagado'?'var(--green)':'var(--amber-light)'};color:${r.estado_pago==='pagado'?'white':'#854F0B'};border-color:${r.estado_pago==='pagado'?'var(--green)':'var(--amber)'}" onclick="marcarPago('${r.id}')">💳 ${r.estado_pago==='pagado'?'Pagado ✓':'Marcar pagado'}</button>`:''}
+
       </div>
     </div>`).join('');
 }
@@ -938,32 +1058,39 @@ async function resolverGasto(id,nuevoEstado){
   const comentario=document.getElementById('comment-'+id)?.value||'';
   const idx=allData.findIndex(r=>r.id===id);if(idx===-1)return;
   try{
-    const rows=await getValues('Gastos!A2:P1000');
+    const rows=await getValues('Gastos!A2:T1000');
     let ri=-1;for(let i=0;i<rows.length;i++)if(rows[i][0]===id){ri=i+2;break;}
     if(ri===-1) throw new Error('Fila no encontrada');
     const r=allData[idx];
-    const upd=[r.id,r.fecha,r.usuario,r.email,r.rol,r.categoria,r.monto,r.proyecto,r.descripcion,nuevoEstado,r.comprobante_url,r.comprobante_nombre,r.fecha_creacion,currentUser.name,new Date().toISOString().split('T')[0],comentario];
-    await updateRange(`Gastos!A${ri}:P${ri}`,upd);
+    // Preservar columnas Q-T (abono, monto_abono, estado_pago, fecha_pago)
+    const upd=[r.id,r.fecha,r.usuario,r.email,r.rol,r.categoria,r.monto,r.proyecto,r.descripcion,nuevoEstado,r.comprobante_url,r.comprobante_nombre,r.fecha_creacion,currentUser.name,new Date().toISOString().split('T')[0],comentario,r.abono||'NO',r.abono_monto||0,r.estado_pago||'pendiente_pago',r.fecha_pago||''];
+    await updateRange(`Gastos!A${ri}:T${ri}`,upd);
     allData[idx]=r2o(upd.map(String));
     showToast(nuevoEstado==='aprobado'?'Aprobada ✓':'Rechazada',nuevoEstado==='aprobado'?'success':'error');
-    document.getElementById('card-'+id)?.remove();updatePendingCount();
-    const n=allData.filter(r=>r.estado==='pendiente').length;
-    document.getElementById('aprobaciones-count').textContent=n+' rendición(es) por revisar';
-    if(!n) document.getElementById('aprobaciones-list').innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo al día!</div></div>';
+    document.getElementById('card-'+id)?.remove();updatePendingCount();updatePagosCount();
+    // Refrescar lista aprobaciones (solo pendientes)
+    const pendientes=allData.filter(r=>r.estado==='pendiente');
+    document.getElementById('aprobaciones-count').textContent=pendientes.length+' rendición(es) por revisar';
+    if(!pendientes.length) document.getElementById('aprobaciones-list').innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo al día!</div></div>';
+    else renderAprobaciones();
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
-async function marcarPago(id,origen='aprobaciones'){
+async function marcarPago(id,origen='pagos'){
   const idx=allData.findIndex(r=>r.id===id);if(idx===-1)return;
+  const r=allData[idx];
+  const netoPagar=Math.max(0,r.monto-r.abono_monto);
+  const montoInput=prompt(`Monto pagado para ${r.usuario}\nMonto rendición: $${r.monto.toLocaleString('es-CL')}\nAbono previo: $${r.abono_monto.toLocaleString('es-CL')}\nNeto a pagar: $${netoPagar.toLocaleString('es-CL')}\n\nIngresa el monto que se pagó:`,netoPagar);
+  if(montoInput===null) return;
+  const montoPagado=parseFloat(montoInput)||netoPagar;
   try{
     const rows=await getValues('Gastos!A2:T1000');
     let ri=-1;for(let i=0;i<rows.length;i++)if(rows[i][0]===id){ri=i+2;break;}
     if(ri===-1)throw new Error('Fila no encontrada');
-    const r=allData[idx];
     const fechaPago=new Date().toISOString().split('T')[0];
-    await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',fechaPago]);
-    allData[idx]={...r,estado_pago:'pagado',fecha_pago:fechaPago};
-    showToast('Rendición marcada como pagada ✓','success');
+    await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',fechaPago+' ($'+montoPagado.toLocaleString('es-CL')+')']);
+    allData[idx]={...r,estado_pago:'pagado',fecha_pago:fechaPago+' ($'+montoPagado.toLocaleString('es-CL')+')'};
+    showToast('Pagado ✓ $'+montoPagado.toLocaleString('es-CL'),'success');
     document.getElementById('pago-card-'+id)?.remove();
     updatePagosCount();
     const n=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado').length;
@@ -991,17 +1118,23 @@ function renderPagos(){
   const list=document.getElementById('pagos-list');
   document.getElementById('pagos-title').textContent=pendPago.length+' rendición(es) pendiente(s) de pago';
   if(!pendPago.length){
-    list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo pagado! No hay rendiciones pendientes.</div></div>';
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo pagado!</div></div>';
     return;
   }
-  list.innerHTML=pendPago.map(r=>`
+  list.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:var(--purple-light);border-radius:10px">
+      <input type="checkbox" id="sel-all-pagos" onchange="toggleSelAll(this)" style="width:16px;height:16px;cursor:pointer">
+      <label for="sel-all-pagos" style="font-size:13px;font-weight:500;cursor:pointer">Seleccionar todas</label>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="pagarSeleccionadas()">💳 Pagar seleccionadas</button>
+    </div>
+  `+pendPago.map(r=>`
     <div class="approval-card" id="pago-card-${r.id}">
       <div class="approval-top">
-        <div class="approval-user">
-          <div class="avatar">${r.usuario.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}</div>
-          <div class="approval-meta">
-            <div class="name">${r.usuario}</div>
-            <div class="sub">${r.email} · Aprobado: ${r.fecha_aprobacion||'—'}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          <input type="checkbox" class="pago-checkbox" data-id="${r.id}" style="width:16px;height:16px;cursor:pointer">
+          <div class="approval-user">
+            <div class="avatar">${r.usuario.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}</div>
+            <div class="approval-meta"><div class="name">${r.usuario}</div><div class="sub">${r.email} · ${r.fecha_aprobacion||'—'}</div></div>
           </div>
         </div>
         <span class="badge badge-pending">⏳ Sin pagar</span>
@@ -1012,21 +1145,51 @@ function renderPagos(){
         <div class="detail-item"><div class="label">Centro costo</div><div class="val">${r.proyecto||'—'}</div></div>
         <div class="detail-item"><div class="label">Monto</div><div class="val amount-big">$${r.monto.toLocaleString('es-CL')}</div></div>
         <div class="detail-item"><div class="label">Abono previo</div><div class="val">${r.abono==='SI'?`<span style='color:var(--green)'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'No'}</div></div>
-        <div class="detail-item"><div class="label">A pagar</div><div class="val amount-big" style="color:var(--green)">$${Math.max(0,r.monto-r.abono_monto).toLocaleString('es-CL')}</div></div>
+        <div class="detail-item"><div class="label">Neto a pagar</div><div class="val amount-big" style="color:var(--green)">$${Math.max(0,r.monto-r.abono_monto).toLocaleString('es-CL')}</div></div>
       </div>
       <div class="approval-actions">
-        <button class="btn btn-primary btn-sm" onclick="marcarPago('${r.id}','pagos')">💳 Marcar como pagado</button>
+        <button class="btn btn-primary btn-sm" onclick="marcarPago('${r.id}')">💳 Pagar este</button>
       </div>
     </div>`).join('');
+}
+
+function toggleSelAll(cb){
+  document.querySelectorAll('.pago-checkbox').forEach(c=>c.checked=cb.checked);
+}
+
+async function pagarSeleccionadas(){
+  const ids=[...document.querySelectorAll('.pago-checkbox:checked')].map(c=>c.dataset.id);
+  if(!ids.length){showToast('Selecciona al menos una rendición','error');return;}
+  if(!confirm('¿Pagar '+ids.length+' rendición(es) seleccionada(s)?'))return;
+  showToast('Procesando '+ids.length+' pagos...','info');
+  for(const id of ids) await marcarPago(id);
+}
+
+
+function toggleSelectAllPagos(cb){
+  document.querySelectorAll('.pago-check').forEach(c=>c.checked=cb.checked);
+  updatePagosSelected();
+}
+function updatePagosSelected(){
+  const checks=document.querySelectorAll('.pago-check:checked');
+  const total=Array.from(checks).reduce((s,c)=>s+parseFloat(c.dataset.monto||0),0);
+  const el=document.getElementById('pagos-selected-info');
+  if(el) el.textContent=checks.length+' seleccionados · Total: $'+total.toLocaleString('es-CL');
+}
+async function pagarSeleccionados(){
+  const checks=Array.from(document.querySelectorAll('.pago-check:checked'));
+  if(!checks.length){showToast('Selecciona al menos una rendición','error');return;}
+  if(!confirm('¿Marcar '+checks.length+' rendición(es) como pagadas?')) return;
+  showToast('Procesando '+checks.length+' pagos...','info');
+  for(const cb of checks) await marcarPago(cb.dataset.id,'pagos');
+  showToast('Pagos registrados ✓','success');
 }
 
 async function pagarTodas(){
   const pend=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado');
   if(!pend.length)return;
   if(!confirm('¿Marcar '+pend.length+' rendición(es) como pagadas?'))return;
-  showToast('Procesando pagos...','info');
-  for(const r of pend) await marcarPago(r.id,'pagos');
-  showToast('Todas marcadas como pagadas ✓','success');
+  for(const r of pend) await marcarPago(r.id);
 }
 
 // ── Usuarios (admin) ──────────────────────────────────────
@@ -1037,7 +1200,7 @@ async function renderUsuarios(){
     const pend=users.filter(u=>u.status==='pendiente').length;
     const b=document.getElementById('users-pending-count');b.textContent=pend;b.style.display=pend>0?'':'none';
     document.getElementById('users-title').textContent=`${users.length} usuarios · ${pend} pendientes de aprobación`;
-    document.getElementById('users-table-body').innerHTML=`<table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead><tbody>
+    document.getElementById('users-table-body').innerHTML=`<table><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Banco</th><th>Registro</th><th>Acciones</th></tr></thead><tbody>
       ${users.map(u=>`<tr>
         <td><strong>${u.name}</strong></td><td>${u.email}</td>
         <td><select class="role-select" onchange="updateUserRole('${u.email}',this.value)" ${u.email===currentUser.email?'disabled':''}>
@@ -1047,6 +1210,7 @@ async function renderUsuarios(){
         </select></td>
         <td>${u.status==='activo'?'<span class="badge badge-approved">Activo</span>':u.status==='pendiente'?'<span class="badge badge-pending">Pendiente</span>':'<span class="badge badge-rejected">Inactivo</span>'}</td>
         <td style="font-size:12px;color:var(--text-2)">${(u.created||'').split('T')[0]||'—'}</td>
+        <td style="font-size:11px;color:var(--text-2)">${u.banco?u.banco+" · "+u.tipo_cuenta:"<span style='color:var(--amber)'>⚠️ Sin datos</span>"}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           ${u.status==='pendiente'?`<button class="btn btn-sm btn-success" onclick="changeUserStatus('${u.email}','activo').then(()=>{showToast('Aprobado ✓','success');renderUsuarios()})">✓ Aprobar</button>`:''}
           ${u.email!==currentUser.email?`
@@ -1141,6 +1305,95 @@ function exportarExcel(){
 function bh(e){const m={pendiente:'badge-pending',aprobado:'badge-approved',rechazado:'badge-rejected',borrador:'badge-draft'};const l={pendiente:'Pendiente',aprobado:'Aprobado',rechazado:'Rechazado',borrador:'Borrador'};return`<span class="badge ${m[e]||'badge-draft'}">${l[e]||e}</span>`;}
 function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='show '+type;clearTimeout(window._tt);window._tt=setTimeout(()=>t.className='',3500);}
 function setInitMsg(msg){const el=document.getElementById('init-msg');if(el)el.textContent=msg;}
+
+
+
+// ── Perfil bancario ──────────────────────────────────────────
+async function checkPerfilBancario(){
+  try{
+    const found=await findUserRow(currentUser.email);
+    if(!found)return;
+    const r=found.row;
+    const rut=r[8]||'',banco=r[9]||'',tipo=r[10]||'',num=r[11]||'';
+    if(!rut||!banco||!tipo||!num){
+      // Mostrar recordatorio en dashboard
+      const cc=document.getElementById('dashboard-cc');
+      if(cc){
+        const reminder=document.createElement('div');
+        reminder.style.cssText='background:var(--amber-light);border:1px solid var(--amber);border-radius:12px;padding:14px 18px;margin-top:16px;display:flex;align-items:center;gap:12px';
+        reminder.innerHTML=`<span style="font-size:24px">🏦</span><div style="flex:1"><div style="font-size:13px;font-weight:600">Completa tus datos bancarios</div><div style="font-size:12px;color:var(--text-2)">Para recibir pagos de tus rendiciones necesitas agregar tu cuenta.</div></div><button class="btn btn-sm" onclick="showScreen('perfil-screen')" style="white-space:nowrap">Completar ahora</button>`;
+        cc.prepend(reminder);
+      }
+    }
+  }catch(e){console.log('perfil check error',e);}
+}
+
+async function guardarPerfil(){
+  const rut=document.getElementById('p-rut').value.trim();
+  const banco=document.getElementById('p-banco').value;
+  const tipo=document.getElementById('p-tipo').value;
+  const num=document.getElementById('p-numcuenta').value.trim();
+  if(!rut||!banco||!tipo||!num){showAuthError('perfil-error','Completa todos los campos');return;}
+  const btn=document.getElementById('btn-perfil');btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    const found=await findUserRow(currentUser.email);
+    if(!found)throw new Error('Usuario no encontrado');
+    const r=found.row;
+    await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'',r[7]||'',rut,banco,tipo,num]);
+    showToast('Datos bancarios guardados ✓','success');
+    startApp();
+  }catch(e){showAuthError('perfil-error','Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Guardar datos bancarios →';}
+}
+
+function saltarPerfil(){
+  startApp();
+  showToast('Recuerda completar tus datos bancarios para recibir pagos','info');
+}
+
+// ── Pull to refresh ──────────────────────────────────────
+(function(){
+  let startY=0,pulling=false;
+  const indicator=document.getElementById('pull-indicator');
+  document.addEventListener('touchstart',e=>{
+    if(window.scrollY===0) startY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!startY) return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>60&&!pulling){pulling=true;if(indicator)indicator.classList.add('visible');}
+  },{passive:true});
+  document.addEventListener('touchend',()=>{
+    if(pulling){pulling=false;if(indicator)indicator.classList.remove('visible');syncAll();}
+    startY=0;
+  });
+})();
+
+
+// ── Pull to refresh ───────────────────────────────────────
+(function(){
+  let startY=0,pulling=false;
+  document.addEventListener('touchstart',e=>{
+    if(window.scrollY===0) startY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!startY) return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>60&&window.scrollY===0){
+      pulling=true;
+      document.getElementById('ptr-indicator').classList.add('visible');
+    }
+  },{passive:true});
+  document.addEventListener('touchend',()=>{
+    if(pulling){
+      pulling=false;
+      document.getElementById('ptr-indicator').classList.remove('visible');
+      showToast('Actualizando...','info');
+      loadAllData().then(()=>showToast('Actualizado ✓','success'));
+    }
+    startY=0;
+  });
+})();
 
 // ── Service Worker (PWA) ──────────────────────────────────
 if('serviceWorker' in navigator){
