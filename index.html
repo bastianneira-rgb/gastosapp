@@ -711,13 +711,29 @@ async function initSheets(){
 
 // ── Usuarios ─────────────────────────────────────────────
 async function getAllUsers(){const rows=await getValues('Usuarios!A2:L500');return rows.filter(r=>r[0]&&r[0]!=='ELIMINADO').map(r=>({id:r[0]||'',name:r[1]||'',email:r[2]||'',passHash:r[3]||'',role:r[4]||'colaborador',status:r[5]||'pendiente',created:r[6]||'',pinHash:r[7]||'',rut:r[8]||'',banco:r[9]||'',tipo_cuenta:r[10]||'',num_cuenta:r[11]||''}));}
-async function findUserRow(email){const rows=await getValues('Usuarios!A2:G500');for(let i=0;i<rows.length;i++)if((rows[i][2]||'').toLowerCase()===email.toLowerCase())return{idx:i+2,row:rows[i]};return null;}
+async function findUserRow(email){const rows=await getValues('Usuarios!A2:L500');for(let i=0;i<rows.length;i++)if((rows[i][2]||'').toLowerCase()===email.toLowerCase())return{idx:i+2,row:rows[i]};return null;}
 async function hashPass(p){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
 
 // ── Auth ─────────────────────────────────────────────────
 let currentUser=null;
 function showScreen(id){['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen','perfil-screen'].forEach(s=>document.getElementById(s).style.display=s===id?'flex':'none');}
 function showAuthError(id,msg){const e=document.getElementById(id);e.textContent=msg;e.style.display='block';}
+
+// Guardar sesión en localStorage Y sessionStorage (doble respaldo para PWA iPhone)
+function saveSession(user){
+  const data=JSON.stringify(user);
+  try{localStorage.setItem('gastosapp_session',data);}catch(e){}
+  try{sessionStorage.setItem('gastosapp_session',data);}catch(e){}
+}
+function loadSession(){
+  try{const d=localStorage.getItem('gastosapp_session');if(d)return JSON.parse(d);}catch(e){}
+  try{const d=sessionStorage.getItem('gastosapp_session');if(d)return JSON.parse(d);}catch(e){}
+  return null;
+}
+function clearSession(){
+  try{localStorage.removeItem('gastosapp_session');}catch(e){}
+  try{sessionStorage.removeItem('gastosapp_session');}catch(e){}
+}
 
 // Usuario temporal durante flujo de login
 let _loginUser = null;
@@ -727,17 +743,21 @@ async function doLogin(){
   const pass=document.getElementById('l-pass').value;
   document.getElementById('login-error').style.display='none';
   if(!email||!pass){showAuthError('login-error','Completa todos los campos');return;}
-  const btn=document.getElementById('btn-login');btn.disabled=true;btn.textContent='Verificando...';
+  const btn=document.getElementById('btn-login');btn.disabled=true;btn.innerHTML='<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px"></span>Verificando...';
   try{
     const users=await getAllUsers();
     const u=users.find(u=>u.email.toLowerCase()===email.toLowerCase());
     if(!u){showAuthError('login-error','Email no registrado. ¿Ya tienes cuenta?');return;}
+    // Verificar que el hash existe (puede haberse corrompido por escritura parcial)
+    if(!u.passHash||u.passHash.length<10){
+      showAuthError('login-error','Cuenta dañada. Pide al administrador que restablezca tu contraseña.');return;
+    }
     if(u.passHash!==await hashPass(pass)){showAuthError('login-error','Contraseña incorrecta');return;}
     if(u.status==='pendiente'){showScreen('pending-screen');return;}
     if(u.status!=='activo'){showAuthError('login-error','Tu cuenta está inactiva. Contacta al administrador.');return;}
     _loginUser=u;
     currentUser={id:u.id,name:u.name,email:u.email,role:u.role};
-    localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
+    saveSession(currentUser);
     await checkPerfilBancario(u);
   }catch(e){showAuthError('login-error','Error de conexión: '+e.message);}
   finally{btn.disabled=false;btn.textContent='Ingresar →';}
@@ -882,7 +902,7 @@ function togglePass(id,btn){
 }
 
 function doLogout(){
-  localStorage.removeItem('gastosapp_session');
+  clearSession();
   currentUser=null;accessToken=null;_loginUser=null;
   document.getElementById('app').style.display='none';
   showScreen('login-screen');
@@ -1315,8 +1335,8 @@ async function resetPin(email){
   try{
     const found=await findUserRow(email);if(!found)return;
     const r=found.row;
-    await updateRange('Usuarios!A'+found.idx+':H'+found.idx,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'','']);
-    showToast('PIN reseteado ✓. El usuario deberá crear uno nuevo.','success');
+    await updateRange('Usuarios!A'+found.idx+':L'+found.idx,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'','',r[8]||'',r[9]||'',r[10]||'',r[11]||'']);
+    showToast('PIN reseteado ✓','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
@@ -1327,7 +1347,7 @@ async function resetPassword(email){
     const found=await findUserRow(email);if(!found)return;
     const r=found.row;
     const hash=await hashPass(newPass);
-    await updateRange(`Usuarios!A${found.idx}:G${found.idx}`,[r[0],r[1],r[2],hash,r[4],r[5],r[6]||'']);
+    await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,[r[0],r[1],r[2],hash,r[4],r[5],r[6]||'',r[7]||'',r[8]||'',r[9]||'',r[10]||'',r[11]||'']);
     showToast('Contraseña restablecida ✓','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 }
@@ -1335,11 +1355,8 @@ async function resetPassword(email){
 async function eliminarUsuario(email,nombre){
   if(!confirm(`¿Eliminar definitivamente al usuario ${nombre}?\nEsta acción no se puede deshacer.`)) return;
   try{
-    const rows=await getValues('Usuarios!A2:G500');
-    let ri=-1;for(let i=0;i<rows.length;i++)if((rows[i][2]||'').toLowerCase()===email.toLowerCase()){ri=i+2;break;}
-    if(ri===-1){showToast('Usuario no encontrado','error');return;}
-    // Limpiar la fila (no se puede eliminar filas fácilmente, se marca como eliminado)
-    await updateRange(`Usuarios!A${ri}:G${ri}`,['ELIMINADO','','','','','eliminado','']);
+    const found=await findUserRow(email);if(!found)return;
+    await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,['ELIMINADO','','','','','eliminado','','','','','','']);
     showToast('Usuario eliminado ✓','success');
     renderUsuarios();
   }catch(e){showToast('Error: '+e.message,'error');}
@@ -1348,14 +1365,16 @@ async function eliminarUsuario(email,nombre){
 async function changeUserStatus(email,status){
   const found=await findUserRow(email);if(!found)return;
   const r=found.row;
-  await updateRange(`Usuarios!A${found.idx}:G${found.idx}`,[r[0],r[1],r[2],r[3],r[4],status,r[6]||'']);
+  // Preservar TODAS las columnas, solo cambiar el estado (col F = índice 5)
+  await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,[r[0],r[1],r[2],r[3],r[4],status,r[6]||'',r[7]||'',r[8]||'',r[9]||'',r[10]||'',r[11]||'']);
 }
 
 async function updateUserRole(email,role){
   try{
     const found=await findUserRow(email);if(!found)return;
     const r=found.row;
-    await updateRange(`Usuarios!A${found.idx}:G${found.idx}`,[r[0],r[1],r[2],r[3],role,r[5],r[6]||'']);
+    // Preservar TODAS las columnas, solo cambiar el rol (col E = índice 4)
+    await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,[r[0],r[1],r[2],r[3],role,r[5],r[6]||'',r[7]||'',r[8]||'',r[9]||'',r[10]||'',r[11]||'']);
     showToast('Rol actualizado ✓','success');
   }catch(e){showToast('Error: '+e.message,'error');}
 }
@@ -1560,7 +1579,7 @@ async function guardarModalPerfil(){
     const newHash=pass?await hashPass(pass):(r[3]||'');
     await updateRange('Usuarios!A'+found.idx+':L'+found.idx,[r[0],nombre,email,newHash,r[4],r[5],r[6]||'',r[7]||'',rut,banco,tipo,num]);
     currentUser.name=nombre;currentUser.email=email;
-    localStorage.setItem('gastosapp_session',JSON.stringify(currentUser));
+    saveSession(currentUser);
     // Actualizar sidebar
     const ini=nombre.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
     document.getElementById('sidebar-avatar').textContent=ini;
@@ -1612,10 +1631,31 @@ window.addEventListener('DOMContentLoaded',async()=>{
     await syncServerTime();
     setInitMsg('Conectando con Google Sheets...');
     await initSheets();
-    const saved=localStorage.getItem('gastosapp_session');
+    const saved=loadSession();
     if(saved){
-      try{currentUser=JSON.parse(saved);document.getElementById('init-overlay').style.display='none';startApp();return;}
-      catch(e){localStorage.removeItem('gastosapp_session');}
+      try{
+        currentUser=saved;
+        // En PWA iPhone verificamos que la sesión sea válida consultando el usuario en Sheets
+        setInitMsg('Verificando sesión...');
+        const users=await getAllUsers();
+        const u=users.find(u=>u.email.toLowerCase()===currentUser.email.toLowerCase());
+        if(u&&u.status==='activo'){
+          currentUser={id:u.id,name:u.name,email:u.email,role:u.role};
+          saveSession(currentUser);
+          document.getElementById('init-overlay').style.display='none';
+          startApp();
+          return;
+        } else {
+          clearSession();
+        }
+      }catch(e){
+        // Si falla verificación, igual intentamos iniciar con sesión guardada
+        try{
+          document.getElementById('init-overlay').style.display='none';
+          startApp();
+          return;
+        }catch(e2){clearSession();}
+      }
     }
     document.getElementById('init-overlay').style.display='none';
     showScreen('login-screen');
