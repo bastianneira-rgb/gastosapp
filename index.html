@@ -413,7 +413,7 @@
     <div class="content">
 
       <div class="view active" id="view-dashboard">
-        <div id="perfil-alert" style="display:none;background:var(--amber-light);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:10px">
+        <div id="perfil-alert" style="display:none;background:var(--amber-light);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;align-items:center;gap:10px">
           ⚠️ <span>Completa tus <strong>datos bancarios</strong> para recibir pagos.</span>
           <button class="btn btn-sm" style="margin-left:auto;border-color:var(--amber)" onclick="showScreen('perfil-screen')">Completar ahora</button>
         </div>
@@ -922,6 +922,9 @@ function startApp(){
   if(currentUser.role==='admin'||currentUser.role==='aprobador') document.getElementById('nav-aprobaciones').style.display='flex';
   if(currentUser.role==='admin'||currentUser.role==='aprobador') document.getElementById('nav-pagos').style.display='flex';
   if(currentUser.role==='admin') document.getElementById('nav-usuarios').style.display='flex';
+  // Ocultar Reportes para colaboradores
+  const navReportes=document.querySelector('.nav-item[onclick*="reportes"]');
+  if(navReportes) navReportes.style.display=currentUser.role==='colaborador'?'none':'flex';
   loadAllData();
   // Verificar perfil bancario para colaboradores
   if(currentUser.role==='colaborador') setTimeout(checkPerfilBancario, 1500);
@@ -1188,13 +1191,15 @@ async function marcarPago(id,origen='pagos'){
   const montoInput=prompt(`Monto pagado para ${r.usuario}\nMonto rendición: $${r.monto.toLocaleString('es-CL')}\nAbono previo: $${r.abono_monto.toLocaleString('es-CL')}\nNeto a pagar: $${netoPagar.toLocaleString('es-CL')}\n\nIngresa el monto que se pagó:`,netoPagar);
   if(montoInput===null) return;
   const montoPagado=parseFloat(montoInput)||netoPagar;
+  const comentarioPago=prompt('Comentario del pago (opcional, presiona OK para omitir):','')||'';
   try{
     const rows=await getValues('Gastos!A2:T1000');
     let ri=-1;for(let i=0;i<rows.length;i++)if(rows[i][0]===id){ri=i+2;break;}
     if(ri===-1)throw new Error('Fila no encontrada');
     const fechaPago=new Date().toISOString().split('T')[0];
-    await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',fechaPago+' ($'+montoPagado.toLocaleString('es-CL')+')']);
-    allData[idx]={...r,estado_pago:'pagado',fecha_pago:fechaPago+' ($'+montoPagado.toLocaleString('es-CL')+')'};
+    const notaPago=fechaPago+' ($'+montoPagado.toLocaleString('es-CL')+(comentarioPago?' - '+comentarioPago:'')+')';
+    await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',notaPago]);
+    allData[idx]={...r,estado_pago:'pagado',fecha_pago:notaPago};
     showToast('Pagado ✓ $'+montoPagado.toLocaleString('es-CL'),'success');
     document.getElementById('pago-card-'+id)?.remove();
     updatePagosCount();
@@ -1465,48 +1470,7 @@ function setInitMsg(msg){const el=document.getElementById('init-msg');if(el)el.t
 
 
 
-// ── Perfil bancario ──────────────────────────────────────────
-async function checkPerfilBancario(){
-  try{
-    const found=await findUserRow(currentUser.email);
-    if(!found)return;
-    const r=found.row;
-    const rut=r[8]||'',banco=r[9]||'',tipo=r[10]||'',num=r[11]||'';
-    if(!rut||!banco||!tipo||!num){
-      // Mostrar recordatorio en dashboard
-      const cc=document.getElementById('dashboard-cc');
-      if(cc){
-        const reminder=document.createElement('div');
-        reminder.style.cssText='background:var(--amber-light);border:1px solid var(--amber);border-radius:12px;padding:14px 18px;margin-top:16px;display:flex;align-items:center;gap:12px';
-        reminder.innerHTML=`<span style="font-size:24px">🏦</span><div style="flex:1"><div style="font-size:13px;font-weight:600">Completa tus datos bancarios</div><div style="font-size:12px;color:var(--text-2)">Para recibir pagos de tus rendiciones necesitas agregar tu cuenta.</div></div><button class="btn btn-sm" onclick="showScreen('perfil-screen')" style="white-space:nowrap">Completar ahora</button>`;
-        cc.prepend(reminder);
-      }
-    }
-  }catch(e){console.log('perfil check error',e);}
-}
 
-async function guardarPerfil(){
-  const rut=document.getElementById('p-rut').value.trim();
-  const banco=document.getElementById('p-banco').value;
-  const tipo=document.getElementById('p-tipo').value;
-  const num=document.getElementById('p-numcuenta').value.trim();
-  if(!rut||!banco||!tipo||!num){showAuthError('perfil-error','Completa todos los campos');return;}
-  const btn=document.getElementById('btn-perfil');btn.disabled=true;btn.textContent='Guardando...';
-  try{
-    const found=await findUserRow(currentUser.email);
-    if(!found)throw new Error('Usuario no encontrado');
-    const r=found.row;
-    await updateRange(`Usuarios!A${found.idx}:L${found.idx}`,[r[0],r[1],r[2],r[3],r[4],r[5],r[6]||'',r[7]||'',rut,banco,tipo,num]);
-    showToast('Datos bancarios guardados ✓','success');
-    startApp();
-  }catch(e){showAuthError('perfil-error','Error: '+e.message);}
-  finally{btn.disabled=false;btn.textContent='Guardar datos bancarios →';}
-}
-
-function saltarPerfil(){
-  startApp();
-  showToast('Recuerda completar tus datos bancarios para recibir pagos','info');
-}
 
 // ── Pull to refresh ──────────────────────────────────────
 (function(){
