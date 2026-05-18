@@ -327,6 +327,10 @@
       <span class="nav-icon">✅</span> Aprobaciones
       <span class="badge-count" id="pending-count" style="display:none">0</span>
     </div>
+    <div class="nav-item" id="nav-pagos" style="display:none" onclick="showView('pagos',this)">
+      <span class="nav-icon">💳</span> Pagos
+      <span class="badge-count" id="pagos-count" style="display:none">0</span>
+    </div>
     <div class="nav-item" id="nav-usuarios" style="display:none" onclick="showView('usuarios',this)">
       <span class="nav-icon">👥</span> Usuarios
       <span class="badge-count" id="users-pending-count" style="display:none">0</span>
@@ -393,10 +397,13 @@
           <div style="margin-top:14px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:0" id="abono-row">
               <label style="font-size:13px;font-weight:500;flex:1;margin:0">¿Existe abono previo?</label>
-              <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
-                <input type="checkbox" id="f-abono-toggle" onchange="toggleAbono(this)" style="opacity:0;width:0;height:0">
-                <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s" id="abono-slider"></span>
-              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="abono-label" style="font-size:12px;font-weight:600;color:#ccc;transition:color .3s">NO</span>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+                  <input type="checkbox" id="f-abono-toggle" onchange="toggleAbono(this)" style="opacity:0;width:0;height:0">
+                  <span style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.3s" id="abono-slider"></span>
+                </label>
+              </div>
             </div>
             <div id="abono-monto-row" style="display:none;margin-top:12px">
               <label style="font-size:12px;font-weight:500;color:var(--text-2);display:block;margin-bottom:4px">Monto abono previo ($CLP)</label>
@@ -449,6 +456,14 @@
       <div class="view" id="view-usuarios">
         <div class="filter-row"><span style="font-size:13px;color:var(--text-2)" id="users-title">Gestión de usuarios</span></div>
         <div class="table-card"><div id="users-table-body"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">Cargando...</div></div></div></div>
+      </div>
+
+      <div class="view" id="view-pagos">
+        <div class="filter-row">
+          <span style="font-size:13px;color:var(--text-2)" id="pagos-title">Rendiciones pendientes de pago</span>
+          <button class="btn btn-sm btn-success" style="margin-left:auto" onclick="pagarTodas()">💳 Pagar todas</button>
+        </div>
+        <div id="pagos-list"><div class="empty-state"><div class="empty-icon">💳</div><div class="empty-text">Cargando...</div></div></div>
       </div>
 
       <div class="view" id="view-reportes">
@@ -716,7 +731,7 @@ function doLogout(){
 
 // ── App start ─────────────────────────────────────────────
 function startApp(){
-  ['login-screen','register-screen','pending-screen'].forEach(s=>document.getElementById(s).style.display='none');
+  ['login-screen','register-screen','pending-screen','create-pin-screen','enter-pin-screen'].forEach(s=>document.getElementById(s).style.display='none');
   document.getElementById('app').style.display='block';
   const ini=currentUser.name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
   document.getElementById('sidebar-avatar').textContent=ini;
@@ -726,6 +741,7 @@ function startApp(){
   document.getElementById('stat-user-role').textContent=currentUser.role;
   document.getElementById('f-fecha').value=new Date().toISOString().split('T')[0];
   if(currentUser.role==='admin'||currentUser.role==='aprobador') document.getElementById('nav-aprobaciones').style.display='flex';
+  if(currentUser.role==='admin'||currentUser.role==='aprobador') document.getElementById('nav-pagos').style.display='flex';
   if(currentUser.role==='admin') document.getElementById('nav-usuarios').style.display='flex';
   loadAllData();
 }
@@ -736,18 +752,19 @@ function showView(id,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
   el.classList.add('active');
-  document.getElementById('view-title').textContent={dashboard:'Dashboard',nueva:'Nueva rendición',mis:'Mis rendiciones',aprobaciones:'Aprobaciones',reportes:'Reportes',usuarios:'Usuarios'}[id]||id;
+  document.getElementById('view-title').textContent={dashboard:'Dashboard',nueva:'Nueva rendición',mis:'Mis rendiciones',aprobaciones:'Aprobaciones',pagos:'Pagos',reportes:'Reportes',usuarios:'Usuarios'}[id]||id;
   if(id==='mis') renderMisRendiciones();
   if(id==='aprobaciones') renderAprobaciones();
   if(id==='reportes') renderReportes();
   if(id==='dashboard') renderDashboard();
   if(id==='usuarios') renderUsuarios();
+  if(id==='pagos') renderPagos();
 }
 
 // ── Data ──────────────────────────────────────────────────
 let allData=[],selectedFile=null;
 function r2o(r){return{id:r[0]||'',fecha:r[1]||'',usuario:r[2]||'',email:r[3]||'',rol:r[4]||'',categoria:r[5]||'',monto:parseFloat(r[6])||0,proyecto:r[7]||'',descripcion:r[8]||'',estado:r[9]||'',comprobante_url:r[10]||'',comprobante_nombre:r[11]||'',fecha_creacion:r[12]||'',aprobado_por:r[13]||'',fecha_aprobacion:r[14]||'',comentario:r[15]||'',abono:r[16]||'NO',abono_monto:parseFloat(r[17])||0,estado_pago:r[18]||'pendiente_pago',fecha_pago:r[19]||''};}
-async function loadAllData(){try{allData=(await getValues('Gastos!A2:P1000')).map(r2o);renderDashboard();updatePendingCount();populateMesFilter();}catch(e){showToast('Error: '+e.message,'error');}}
+async function loadAllData(){try{allData=(await getValues('Gastos!A2:T1000')).map(r2o);renderDashboard();updatePendingCount();updatePagosCount();populateMesFilter();}catch(e){showToast('Error: '+e.message,'error');}}
 function syncAll(){showToast('Sincronizando...','info');loadAllData().then(()=>showToast('Actualizado ✓','success'));}
 function updatePendingCount(){const n=allData.filter(r=>r.estado==='pendiente').length;const b=document.getElementById('pending-count');b.textContent=n;b.style.display=n>0?'':'none';document.getElementById('stat-pending').textContent=n;}
 
@@ -787,9 +804,10 @@ function renderDashboard(){
 function toggleAbono(cb){
   const row=document.getElementById('abono-monto-row');
   const slider=document.getElementById('abono-slider');
+  const label=document.getElementById('abono-label');
   row.style.display=cb.checked?'block':'none';
   slider.style.background=cb.checked?'var(--purple)':'#ccc';
-  slider.style.transform=cb.checked?'':'';
+  if(label){label.textContent=cb.checked?'SI':'NO';label.style.color=cb.checked?'var(--purple)':'#ccc';}
   if(!cb.checked) document.getElementById('f-abono-monto').value='';
 }
 
@@ -935,7 +953,7 @@ async function resolverGasto(id,nuevoEstado){
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
-async function marcarPago(id){
+async function marcarPago(id,origen='aprobaciones'){
   const idx=allData.findIndex(r=>r.id===id);if(idx===-1)return;
   try{
     const rows=await getValues('Gastos!A2:T1000');
@@ -943,11 +961,14 @@ async function marcarPago(id){
     if(ri===-1)throw new Error('Fila no encontrada');
     const r=allData[idx];
     const fechaPago=new Date().toISOString().split('T')[0];
-    // Actualizar columnas Q-T (índices 16-19)
     await updateRange(`Gastos!Q${ri}:T${ri}`,[r.abono,r.abono_monto,'pagado',fechaPago]);
     allData[idx]={...r,estado_pago:'pagado',fecha_pago:fechaPago};
     showToast('Rendición marcada como pagada ✓','success');
-    renderAprobaciones();
+    document.getElementById('pago-card-'+id)?.remove();
+    updatePagosCount();
+    const n=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado').length;
+    if(document.getElementById('pagos-title')) document.getElementById('pagos-title').textContent=n+' rendición(es) pendiente(s) de pago';
+    if(!n&&document.getElementById('pagos-list')) document.getElementById('pagos-list').innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo pagado!</div></div>';
   }catch(e){showToast('Error: '+e.message,'error');}
 }
 
@@ -955,6 +976,57 @@ async function aprobarTodas(){
   const p=allData.filter(r=>r.estado==='pendiente');
   if(!p.length)return;showToast('Aprobando '+p.length+'...','info');
   for(const r of p) await resolverGasto(r.id,'aprobado');
+}
+
+
+// ── Pagos ─────────────────────────────────────────────────
+function updatePagosCount(){
+  const n=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado').length;
+  const b=document.getElementById('pagos-count');
+  if(b){b.textContent=n;b.style.display=n>0?'':'none';}
+}
+
+function renderPagos(){
+  const pendPago=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado');
+  const list=document.getElementById('pagos-list');
+  document.getElementById('pagos-title').textContent=pendPago.length+' rendición(es) pendiente(s) de pago';
+  if(!pendPago.length){
+    list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">¡Todo pagado! No hay rendiciones pendientes.</div></div>';
+    return;
+  }
+  list.innerHTML=pendPago.map(r=>`
+    <div class="approval-card" id="pago-card-${r.id}">
+      <div class="approval-top">
+        <div class="approval-user">
+          <div class="avatar">${r.usuario.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase()}</div>
+          <div class="approval-meta">
+            <div class="name">${r.usuario}</div>
+            <div class="sub">${r.email} · Aprobado: ${r.fecha_aprobacion||'—'}</div>
+          </div>
+        </div>
+        <span class="badge badge-pending">⏳ Sin pagar</span>
+      </div>
+      <div class="approval-details">
+        <div class="detail-item"><div class="label">Concepto</div><div class="val">${r.descripcion.substring(0,50)}</div></div>
+        <div class="detail-item"><div class="label">Categoría</div><div class="val">${r.categoria}</div></div>
+        <div class="detail-item"><div class="label">Centro costo</div><div class="val">${r.proyecto||'—'}</div></div>
+        <div class="detail-item"><div class="label">Monto</div><div class="val amount-big">$${r.monto.toLocaleString('es-CL')}</div></div>
+        <div class="detail-item"><div class="label">Abono previo</div><div class="val">${r.abono==='SI'?`<span style='color:var(--green)'>💰 $${r.abono_monto.toLocaleString('es-CL')}</span>`:'No'}</div></div>
+        <div class="detail-item"><div class="label">A pagar</div><div class="val amount-big" style="color:var(--green)">$${Math.max(0,r.monto-r.abono_monto).toLocaleString('es-CL')}</div></div>
+      </div>
+      <div class="approval-actions">
+        <button class="btn btn-primary btn-sm" onclick="marcarPago('${r.id}','pagos')">💳 Marcar como pagado</button>
+      </div>
+    </div>`).join('');
+}
+
+async function pagarTodas(){
+  const pend=allData.filter(r=>r.estado==='aprobado'&&r.estado_pago!=='pagado');
+  if(!pend.length)return;
+  if(!confirm('¿Marcar '+pend.length+' rendición(es) como pagadas?'))return;
+  showToast('Procesando pagos...','info');
+  for(const r of pend) await marcarPago(r.id,'pagos');
+  showToast('Todas marcadas como pagadas ✓','success');
 }
 
 // ── Usuarios (admin) ──────────────────────────────────────
