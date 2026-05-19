@@ -970,7 +970,13 @@ let allData=[],selectedFiles=[];
 function r2o(r){return{id:r[0]||'',fecha:r[1]||'',usuario:r[2]||'',email:r[3]||'',rol:r[4]||'',categoria:r[5]||'',monto:parseFloat(r[6])||0,proyecto:r[7]||'',descripcion:r[8]||'',estado:r[9]||'',comprobante_url:r[10]||'',comprobante_nombre:r[11]||'',fecha_creacion:r[12]||'',aprobado_por:r[13]||'',fecha_aprobacion:r[14]||'',comentario:r[15]||'',abono:r[16]||'NO',abono_monto:parseFloat(r[17])||0,estado_pago:r[18]||'pendiente_pago',fecha_pago:r[19]||''};}
 async function loadAllData(){try{allData=(await getValues('Gastos!A2:T1000')).map(r2o);renderDashboard();updatePendingCount();updatePagosCount();populateMesFilter();}catch(e){showToast('Error: '+e.message,'error');}}
 function syncAll(){showToast('Sincronizando...','info');loadAllData().then(()=>showToast('Actualizado ✓','success'));}
-function updatePendingCount(){const n=allData.filter(r=>r.estado==='pendiente').length;const b=document.getElementById('pending-count');b.textContent=n;b.style.display=n>0?'':'none';document.getElementById('stat-pending').textContent=n;}
+function updatePendingCount(){
+  const data=currentUser&&currentUser.role==='colaborador'?allData.filter(r=>r.email===currentUser.email):allData;
+  const n=data.filter(r=>r.estado==='pendiente').length;
+  const b=document.getElementById('pending-count');
+  b.textContent=n;b.style.display=n>0?'':'none';
+  document.getElementById('stat-pending').textContent=n;
+}
 
 // ── Dashboard ─────────────────────────────────────────────
 async function renderDashboard(){
