@@ -990,18 +990,17 @@ async function renderDashboard(){
     const aprobadas=myData.filter(r=>r.estado==='aprobado');
     const pendAprobacion=myData.filter(r=>r.estado==='pendiente');
     const totalAprobado=aprobadas.reduce((s,r)=>s+r.monto,0);
-    // Abonos recibidos = pagado + monto_abono (pagos ya realizados + anticipos declarados)
-    // Pagado = monto real ingresado por admin al marcar como pagado (extraído de fecha_pago)
+    // Pagado = monto real ingresado por admin al marcar como pagado
     const pagado=aprobadas.filter(r=>r.estado_pago==='pagado').reduce((s,r)=>{
       const m=r.fecha_pago?parseFloat((r.fecha_pago.match(/\$([\d.]+)/))||[0,0])[1]||0:0;
       return s+(m>0?m:r.monto);
     },0);
-    const totalAbonosPrevios=aprobadas.filter(r=>r.abono==='SI').reduce((s,r)=>s+r.abono_monto,0);
-    const abonosRecibidos=pagado+totalAbonosPrevios;
+    // Abonos recibidos = solo lo pagado
+    const abonosRecibidos=pagado;
     // Pendiente de pago = rendiciones aprobadas no pagadas
     const pendPago=aprobadas.filter(r=>r.estado_pago!=='pagado').reduce((s,r)=>s+r.monto,0);
-    // Saldo a favor = abonos recibidos - rendiciones aprobadas totales - pagado
-    const saldoFavor=abonosRecibidos-totalAprobado-pagado;
+    // Saldo a favor = abonos recibidos - pendiente de pago
+    const saldoFavor=abonosRecibidos-pendPago;
     document.getElementById('stat-approved-amount').textContent='$'+totalAprobado.toLocaleString('es-CL');
     document.getElementById('stat-approved-count').textContent=aprobadas.length+' aprobadas';
     document.getElementById('stat-total').textContent=myData.length;
