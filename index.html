@@ -973,7 +973,7 @@ function syncAll(){showToast('Sincronizando...','info');loadAllData().then(()=>s
 function updatePendingCount(){const n=allData.filter(r=>r.estado==='pendiente').length;const b=document.getElementById('pending-count');b.textContent=n;b.style.display=n>0?'':'none';document.getElementById('stat-pending').textContent=n;}
 
 // ── Dashboard ─────────────────────────────────────────────
-function renderDashboard(){
+async function renderDashboard(){
   const mes=new Date().toISOString().substring(0,7);
   const isColaborador=currentUser&&currentUser.role==='colaborador';
   const myData=isColaborador?allData.filter(r=>r.email===currentUser.email):allData;
