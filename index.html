@@ -991,7 +991,11 @@ async function renderDashboard(){
     const pendAprobacion=myData.filter(r=>r.estado==='pendiente');
     const totalAprobado=aprobadas.reduce((s,r)=>s+r.monto,0);
     // Abonos recibidos = pagado + monto_abono (pagos ya realizados + anticipos declarados)
-    const pagado=aprobadas.filter(r=>r.estado_pago==='pagado').reduce((s,r)=>s+r.monto,0);
+    // Pagado = monto real ingresado por admin al marcar como pagado (extraído de fecha_pago)
+    const pagado=aprobadas.filter(r=>r.estado_pago==='pagado').reduce((s,r)=>{
+      const m=r.fecha_pago?parseFloat((r.fecha_pago.match(/\$([\d.]+)/))||[0,0])[1]||0:0;
+      return s+(m>0?m:r.monto);
+    },0);
     const totalAbonosPrevios=aprobadas.filter(r=>r.abono==='SI').reduce((s,r)=>s+r.abono_monto,0);
     const abonosRecibidos=pagado+totalAbonosPrevios;
     // Pendiente de pago = rendiciones aprobadas no pagadas
